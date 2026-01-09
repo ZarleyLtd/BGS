@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en-gb">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Ierne Snooker League - ierne-snooker</title>
+    <meta
+      name="description"
+      content="Winter League 2025 completed Congratulatons to Champion... and plate winner.... 🏆 Final Plate Competition 🟦 Quarter Finals 🟦 Semi Finals 🟦 Final"
+    />
+    <meta property="og:title" content="Ierne Snooker League" />
+    <meta property="og:image" content="assets/images/snooker-WM-.jpg" />
+    <meta property="og:image:width" content="1456" />
+    <meta property="og:image:height" content="816" />
+    <meta property="og:site_name" content="ierne-snooker" />
+    <meta
+      property="og:description"
+      content="Winter League 2025 completed Congratulatons to Champion... and plate winner.... 🏆 Final Plate Competition 🟦 Quarter Finals 🟦 Semi Finals 🟦 Final"
+    />
+    <meta property="og:type" content="website" />
+    <link rel="stylesheet" href="assets/css/style.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Ierne Snooker League",
+        "description": "Winter League 2025 completed Congratulatons to Champion... and plate winner.... 🏆 Final Plate Competition 🟦 Quarter Finals 🟦 Semi Finals 🟦 Final",
+        "image": {
+          "@type": "ImageObject",
+          "url": "assets/images/snooker-WM-.jpg",
+          "height": 816,
+          "width": 1456
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "Ierne Snooker League",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "assets/images/Ierne-logo-768x920.png",
+            "height": 920,
+            "width": 768
+          }
+        }
+      }
+    </script>
+    <noscript>
+      <style>
+        img[loading] {
+          opacity: 1;
+        }
+      </style>
+    </noscript>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- Configuration -->
+    <script src="assets/js/config/sheets-config.js"></script>
+    <!-- Utilities -->
+    <script src="assets/js/utils/csv-loader.js"></script>
+    <script src="assets/js/utils/formatters.js"></script>
+    <script src="assets/js/utils/image-loader.js"></script>
+    <!-- Components -->
+    <script src="assets/js/components/knockout-renderer.js"></script>
+    <script src="assets/js/components/league-standings.js"></script>
+    <!-- Page modules -->
+    <script src="assets/js/pages/index.js"></script>
+    <script src="assets/js/pages/fixtures.js"></script>
+    <script src="assets/js/pages/results.js"></script>
+    <script src="assets/js/pages/leagues.js"></script>
+    <script src="assets/js/pages/handicaps.js"></script>
+    <script src="assets/js/pages/under-development.js"></script>
+    <script src="assets/js/pages/league-leaders.js"></script>
+    <!-- Main entry point -->
+    <script defer src="assets/js/main.js"></script>
+  </head>
+
+  <body class="page-template">
+    <header class="top js-header">
+      <a class="logo" href="index.html">
+        <img src="assets/images/Ierne-logo-768x920.png" alt="ierne-snooker" width="768" height="920">
+      </a>
+      <nav class="navbar js-navbar">
+        <button class="navbar__toggle js-toggle" aria-label="Menu" aria-haspopup="true" aria-expanded="false">
+          <span class="navbar__toggle-box">
+            <span class="navbar__toggle-inner">Menu</span>
+          </span>
+        </button>
+        <ul class="navbar__menu">
+          <li>
+            <a href="index.html" target="_self">Home</a>
+          </li>
+          <li>
+            <a href="leagues.html" target="_self">Leagues</a>
+          </li>
+          <li>
+            <a href="fixtures.html" target="_self">Fixtures</a>
+          </li>
+          <li>
+            <a href="results.html" target="_self">Results</a>
+          </li>
+          <li>
+            <a href="top-breaks.html" target="_self">Top Breaks</a>
+          </li>
+          <li>
+            <a href="handicaps.html" target="_self">Handicaps</a>
+          </li>
+          <li>
+            <a href="rules.html" target="_self">Rules</a>
+          </li>
+          <li>
+            <a href="under-development.html" target="_self">Under Development</a>
+          </li>
+        </ul>
+      </nav>
+    </header>
+    <main class="page">
+      <article class="content">
+        <div class="hero">
+          <header class="hero__content hero__content--centered">
+            <div class="wrapper">
+              <h1>Ierne Snooker League</h1>
+            </div>
+          </header>
+          <figure class="hero__image">
+            <div class="hero__image-wrapper">
+              <img
+                src="assets/images/snooker-WM-.jpg"
+                loading="eager"
+                height="816"
+                width="1456"
+                alt="Snooker table"
+              />
+            </div>
+          </figure>
+        </div>
+        <div class="entry-wrapper content__entry">
+          <section class="hero hero--image">
+            <p class="align-center">
+              <strong>Winter League 2025 (TEST) completed</strong>
+            </p>
+            <p class="align-center">Congratulatons to Champion...</p>
+            <h2 class="align-center">
+              <span style="color: #2dc26b">Darren</span>
+            </h2>
+            <p> </p>
+            <p class="align-center">and plate winner....</p>
+            <h2 class="align-center">
+              <span style="color: #2dc26b">Dan</span>
+            </h2>
+            <hr />
+            <p> </p>
+            <h2 style="text-align: center; margin-top: 1em">
+              Championship Knockout
+            </h2>
+            <div class="knockout-wrapper">
+              <div>
+                <h3 style="text-align: center">🏆 Semi Finals</h3>
+                <p> </p>
+                <pre id="champ-semis" class="knockout-block"></pre>
+                <h3 style="text-align: center; margin-top: 2em">🏆 Final</h3>
+                <p> </p>
+                <pre id="champ-final" class="knockout-block"></pre>
+              </div>
+            </div>
+            <hr />
+            <h2 style="text-align: center; margin-top: 1em">
+              Plate Competition
+            </h2>
+            <div class="knockout-wrapper">
+              <div>
+                <h3 style="text-align: center">🟦 Quarter Finals</h3>
+                <p> </p>
+                <pre id="plate-qf" class="knockout-block"></pre>
+                <h3 style="text-align: center; margin-top: 2em">
+                  🟦 Semi Finals
+                </h3>
+                <p> </p>
+                <pre id="plate-sf" class="knockout-block"></pre>
+                <h3 style="text-align: center; margin-top: 2em">🟦 Final</h3>
+                <p> </p>
+                <pre id="plate-final" class="knockout-block"></pre>
+              </div>
+            </div>
+            <p></p>
+          </section>
+        </div>
+      </article>
+    </main>
+    <footer class="footer">
+      <div class="wrapper">
+        <nav class="footer__nav">
+          <ul>
+            <li>
+              <a href="leagues.html" class="al" target="_self">Leagues</a>
+            </li>
+            <li>
+              <a href="fixtures.html" class="al" target="_self">Fixtures</a>
+            </li>
+            <li>
+              <a href="results.html" class="al" target="_self">Results</a>
+            </li>
+          </ul>
+        </nav>
+        <div class="footer__copyright">
+          <p>
+            <span style="color: #169179;">by JP</span>
+          </p>
+        </div>
+        <button id="backToTop" class="footer__bttop" aria-label="Back to top" title="Back to top">
+          <svg width="20" height="20" viewBox="0 0 24 24">
+            <path d="M8 6L12 2L16 6" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M12 2V22" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+      </div>
+    </footer>
+    <script defer="defer" src="assets/js/scripts.min.js"></script>
+    <script>
+      window.themeMenuConfig = {
+        mobileMenuMode: "overlay",
+        animationSpeed: 300,
+        submenuWidth: "auto",
+        doubleClickTime: 500,
+        mobileMenuExpandableSubmenus: true,
+        relatedContainerForOverlayMenuSelector: ".top",
+      };
+    </script>
+    <script src="assets/js/utils/nav-active.js"></script>
+    <!-- Only include nav-debug.js in development/debug mode when needed -->
+    <!-- <script src="assets/js/utils/nav-debug.js"></script> -->
+  </body>
+</html>
