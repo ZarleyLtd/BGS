@@ -196,7 +196,7 @@ const ScorecardPage = {
         });
         
         input.addEventListener('keyup', (e) => {
-          if (e.key === 'Enter' || e.target.value.length === 1) {
+          if (e.key === 'Enter') {
             this.autotab(e.target, i);
           }
         });
@@ -223,13 +223,13 @@ const ScorecardPage = {
   },
 
   handleInput: function(input, holeNum) {
-    // Validate input (1-9 for strokes)
-    if (input.value && (parseInt(input.value) < 1 || parseInt(input.value) > 9)) {
+    // Validate input (0-9 for strokes)
+    if (input.value && (parseInt(input.value) < 0 || parseInt(input.value) > 9)) {
       input.value = '';
     }
     
-    // Auto-tab if max length reached
-    if (input.value.length >= 1) {
+    // Auto-tab only if max length reached AND next field is empty
+    if (input.value.length >= 1 && parseInt(input.value) >= 0) {
       this.autotab(input, holeNum);
     }
     
@@ -238,11 +238,24 @@ const ScorecardPage = {
   },
 
   autotab: function(currentInput, currentHole) {
+    // Only auto-tab if we've reached max length (1 digit) and value is valid
+    const maxLength = currentInput.getAttribute('maxlength');
+    if (!maxLength || currentInput.value.length < parseInt(maxLength)) {
+      return;
+    }
+    
+    // Only proceed if we have a valid digit (0-9)
+    const value = parseInt(currentInput.value);
+    if (isNaN(value) || value < 0 || value > 9) {
+      return;
+    }
+    
     // Focus next hole input (wrap around at hole 18)
     const nextHole = currentHole === 18 ? 1 : currentHole + 1;
     const nextInput = document.getElementById(`hole-${nextHole}`);
     
-    if (nextInput && currentInput.value.length >= 1) {
+    // Always advance to next input, whether it has a value or not
+    if (nextInput) {
       nextInput.focus();
       nextInput.select();
     }
@@ -284,10 +297,14 @@ const ScorecardPage = {
 
     // Calculate stableford points
     for (let i = 0; i < 18; i++) {
-      const strokeValue = this.ifZero(strokes[i], 99);
-      const netStrokes = strokeValue - shots[i];
-      const netVsPar = this.pars[i] - netStrokes;
-      points[i] = Math.max(netVsPar + 2, 0);
+      // If strokes is 0, points are 0
+      if (strokes[i] === 0) {
+        points[i] = 0;
+      } else {
+        const netStrokes = strokes[i] - shots[i];
+        const netVsPar = this.pars[i] - netStrokes;
+        points[i] = Math.max(netVsPar + 2, 0);
+      }
     }
 
     // Calculate totals
@@ -295,16 +312,18 @@ const ScorecardPage = {
     let OUTtotPts = 0, INtotPts = 0;
 
     for (let i = 0; i < 9; i++) {
-      if (strokes[i] > 0) {
-        OUTtotScore += strokes[i];
-        OUTtotPts += points[i];
+      const input = document.getElementById(`hole-${i + 1}`);
+      if (input && input.value !== '') {
+        OUTtotScore += strokes[i] || 0;
+        OUTtotPts += points[i] || 0;
       }
     }
 
     for (let i = 9; i < 18; i++) {
-      if (strokes[i] > 0) {
-        INtotScore += strokes[i];
-        INtotPts += points[i];
+      const input = document.getElementById(`hole-${i + 1}`);
+      if (input && input.value !== '') {
+        INtotScore += strokes[i] || 0;
+        INtotPts += points[i] || 0;
       }
     }
 
@@ -314,8 +333,14 @@ const ScorecardPage = {
     // Update point displays
     for (let i = 0; i < 18; i++) {
       const pointsEl = document.getElementById(`points-${i + 1}`);
+      const input = document.getElementById(`hole-${i + 1}`);
       if (pointsEl) {
-        pointsEl.textContent = strokes[i] > 0 ? points[i] : '0';
+        // Show points if input has a value (including 0), otherwise show 0
+        if (input && input.value !== '') {
+          pointsEl.textContent = points[i];
+        } else {
+          pointsEl.textContent = '0';
+        }
       }
     }
 

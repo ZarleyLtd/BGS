@@ -57,16 +57,27 @@
       }
 
       .scorecard-header {
-        margin-bottom: 2em;
+        margin-bottom: 1.5em;
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 1em;
         align-items: end;
       }
 
+      .scorecard-header .course-select-wrapper {
+        grid-column: 1 / -1;
+      }
+
       @media (max-width: 600px) {
         .scorecard-header {
-          grid-template-columns: 1fr;
+          gap: 0.8em;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .scorecard-header {
+          gap: 0.6em;
+          margin-bottom: 1em;
         }
       }
 
@@ -137,7 +148,7 @@
       }
 
       .scorecard-table th {
-        padding: 0.75em 0.5em;
+        padding: 0.5em 0.5em;
         text-align: center;
         font-weight: 600;
         border: 1px solid var(--light, #CACBCF);
@@ -145,7 +156,7 @@
 
       @media (max-width: 768px) {
         .scorecard-table th {
-          padding: 0.4em 0.2em;
+          padding: 0.35em 0.2em;
           font-size: 1em;
         }
       }
@@ -165,26 +176,26 @@
       }
 
       .scorecard-table td {
-        padding: 0.5em;
+        padding: 0.3em 0.5em;
         text-align: center;
         border: 1px solid var(--light, #CACBCF);
       }
 
       @media (max-width: 768px) {
         .scorecard-table td {
-          padding: 0.35em 0.2em;
+          padding: 0.25em 0.2em;
         }
       }
 
       @media (max-width: 480px) {
         .scorecard-table td {
-          padding: 0.25em 0.1em;
+          padding: 0.2em 0.1em;
         }
       }
 
       @media (max-width: 360px) {
         .scorecard-table td {
-          padding: 0.2em 0.08em;
+          padding: 0.15em 0.08em;
         }
       }
 
@@ -705,7 +716,7 @@
                     <label for="handicap">Handicap Index:</label>
                     <input type="number" id="handicap" name="handicap" min="0" max="54" placeholder="0-54">
                   </div>
-                  <div style="grid-column: 1 / -1;">
+                  <div class="course-select-wrapper">
                     <label for="course-select">Course:</label>
                     <select id="course-select" name="course">
                       <option value="">Select Course</option>
@@ -735,7 +746,7 @@
                       <td class="hole-label">1</td>
                       <td class="par-label" id="par-1">-</td>
                       <td class="index-label" id="index-1">-</td>
-                      <td><input type="number" id="hole-1" name="hole1" min="1" max="9" maxlength="1"></td>
+                      <td><input type="number" id="hole-1" name="hole1" min="0" max="9" maxlength="1"></td>
                       <td><span class="points-display" id="points-1">0</span></td>
                       <td class="hole-label">10</td>
                       <td class="par-label" id="par-10">-</td>
