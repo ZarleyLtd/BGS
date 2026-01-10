@@ -14,19 +14,26 @@
       .scorecard-wrapper {
         max-width: 1000px;
         margin: 2em auto;
-        padding: 0 1em;
+        padding: 0 0.5em;
+      }
+
+      @media (max-width: 768px) {
+        .scorecard-wrapper {
+          padding: 0 0.3em;
+          margin: 1em auto;
+        }
       }
 
       @media (max-width: 480px) {
         .scorecard-wrapper {
-          padding: 0 0.5em;
-          margin: 1em auto;
+          padding: 0 0.2em;
+          margin: 0.5em auto;
         }
       }
 
       @media (max-width: 360px) {
         .scorecard-wrapper {
-          padding: 0 0.3em;
+          padding: 0 0.15em;
           margin: 0.5em auto;
         }
       }
@@ -35,6 +42,18 @@
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
         margin: 1em 0;
+      }
+
+      @media (max-width: 768px) {
+        .scorecard-table-container {
+          margin: 0.5em 0;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .scorecard-table-container {
+          margin: 0.3em 0;
+        }
       }
 
       .scorecard-header {
@@ -60,9 +79,18 @@
       .scorecard-header input,
       .scorecard-header select {
         width: 100%;
-        padding: 0.5em;
+        padding: 0.6em;
         border: 1px solid var(--light, #CACBCF);
         border-radius: 3px;
+        font-size: 1rem;
+      }
+
+      @media (max-width: 480px) {
+        .scorecard-header input,
+        .scorecard-header select {
+          font-size: 1rem;
+          padding: 0.5em;
+        }
       }
 
       .scorecard-table {
@@ -70,35 +98,35 @@
         border-collapse: collapse;
         background: var(--page-bg, #fff);
         margin: 0;
-        font-size: 0.9rem;
+        font-size: 1rem;
         table-layout: fixed;
         min-width: 600px;
       }
 
       @media (max-width: 768px) {
         .scorecard-table {
-          font-size: 0.7rem;
+          font-size: 0.95rem;
           min-width: 380px;
         }
       }
 
       @media (max-width: 480px) {
         .scorecard-table {
-          font-size: 0.6rem;
+          font-size: 0.9rem;
           min-width: 320px;
         }
       }
 
       @media (max-width: 360px) {
         .scorecard-table {
-          font-size: 0.55rem;
+          font-size: 0.85rem;
           min-width: 290px;
         }
       }
 
       @media (max-width: 320px) {
         .scorecard-table {
-          font-size: 0.52rem;
+          font-size: 0.8rem;
           min-width: 275px;
         }
       }
@@ -118,21 +146,21 @@
       @media (max-width: 768px) {
         .scorecard-table th {
           padding: 0.4em 0.2em;
-          font-size: 0.85em;
+          font-size: 1em;
         }
       }
 
       @media (max-width: 480px) {
         .scorecard-table th {
           padding: 0.3em 0.1em;
-          font-size: 0.75em;
+          font-size: 0.95em;
         }
       }
 
       @media (max-width: 360px) {
         .scorecard-table th {
           padding: 0.25em 0.08em;
-          font-size: 0.7em;
+          font-size: 0.9em;
         }
       }
 
@@ -160,6 +188,139 @@
         }
       }
 
+      /* Reduced padding for Par and Index columns (columns 2, 3, 7, 8) */
+      .scorecard-table th:nth-child(2),
+      .scorecard-table td:nth-child(2),
+      .scorecard-table th:nth-child(3),
+      .scorecard-table td:nth-child(3),
+      .scorecard-table th:nth-child(7),
+      .scorecard-table td:nth-child(7),
+      .scorecard-table th:nth-child(8),
+      .scorecard-table td:nth-child(8) {
+        padding-left: 0.1em;
+        padding-right: 0.1em;
+      }
+
+      @media (max-width: 768px) {
+        .scorecard-table th:nth-child(2),
+        .scorecard-table td:nth-child(2),
+        .scorecard-table th:nth-child(3),
+        .scorecard-table td:nth-child(3),
+        .scorecard-table th:nth-child(7),
+        .scorecard-table td:nth-child(7),
+        .scorecard-table th:nth-child(8),
+        .scorecard-table td:nth-child(8) {
+          padding-left: 0.05em;
+          padding-right: 0.05em;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .scorecard-table th:nth-child(2),
+        .scorecard-table td:nth-child(2),
+        .scorecard-table th:nth-child(3),
+        .scorecard-table td:nth-child(3),
+        .scorecard-table th:nth-child(7),
+        .scorecard-table td:nth-child(7),
+        .scorecard-table th:nth-child(8),
+        .scorecard-table td:nth-child(8) {
+          padding-left: 0.03em;
+          padding-right: 0.03em;
+        }
+      }
+
+      @media (max-width: 360px) {
+        .scorecard-table th:nth-child(2),
+        .scorecard-table td:nth-child(2),
+        .scorecard-table th:nth-child(3),
+        .scorecard-table td:nth-child(3),
+        .scorecard-table th:nth-child(7),
+        .scorecard-table td:nth-child(7),
+        .scorecard-table th:nth-child(8),
+        .scorecard-table td:nth-child(8) {
+          padding-left: 0.02em;
+          padding-right: 0.02em;
+        }
+      }
+
+      /* Reduced padding for Hole columns (columns 1, 6) */
+      .scorecard-table th:nth-child(1),
+      .scorecard-table td:nth-child(1),
+      .scorecard-table th:nth-child(6),
+      .scorecard-table td:nth-child(6) {
+        padding-left: 0.1em;
+        padding-right: 0.1em;
+      }
+
+      @media (max-width: 768px) {
+        .scorecard-table th:nth-child(1),
+        .scorecard-table td:nth-child(1),
+        .scorecard-table th:nth-child(6),
+        .scorecard-table td:nth-child(6) {
+          padding-left: 0.05em;
+          padding-right: 0.05em;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .scorecard-table th:nth-child(1),
+        .scorecard-table td:nth-child(1),
+        .scorecard-table th:nth-child(6),
+        .scorecard-table td:nth-child(6) {
+          padding-left: 0.03em;
+          padding-right: 0.03em;
+        }
+      }
+
+      @media (max-width: 360px) {
+        .scorecard-table th:nth-child(1),
+        .scorecard-table td:nth-child(1),
+        .scorecard-table th:nth-child(6),
+        .scorecard-table td:nth-child(6) {
+          padding-left: 0.02em;
+          padding-right: 0.02em;
+        }
+      }
+
+      /* Reduced padding for Points columns (columns 5, 10) */
+      .scorecard-table th:nth-child(5),
+      .scorecard-table td:nth-child(5),
+      .scorecard-table th:nth-child(10),
+      .scorecard-table td:nth-child(10) {
+        padding-left: 0.1em;
+        padding-right: 0.1em;
+      }
+
+      @media (max-width: 768px) {
+        .scorecard-table th:nth-child(5),
+        .scorecard-table td:nth-child(5),
+        .scorecard-table th:nth-child(10),
+        .scorecard-table td:nth-child(10) {
+          padding-left: 0.05em;
+          padding-right: 0.05em;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .scorecard-table th:nth-child(5),
+        .scorecard-table td:nth-child(5),
+        .scorecard-table th:nth-child(10),
+        .scorecard-table td:nth-child(10) {
+          padding-left: 0.03em;
+          padding-right: 0.03em;
+        }
+      }
+
+      @media (max-width: 360px) {
+        .scorecard-table th:nth-child(5),
+        .scorecard-table td:nth-child(5),
+        .scorecard-table th:nth-child(10),
+        .scorecard-table td:nth-child(10) {
+          padding-left: 0.02em;
+          padding-right: 0.02em;
+        }
+      }
+
       /* Compact columns for Hole, Par, Index on mobile - very narrow */
       /* Each group of 5 columns should total 50% (100% for all 10) */
       @media (max-width: 768px) {
@@ -181,17 +342,20 @@
           width: 5%;
           min-width: 1.2em;
         }
-        /* Strokes and Points: 50% - (5% + 5% + 5%) = 35% / 2 = 17.5% each */
+        /* Strokes: narrower, Points: slightly wider - 50% - (5% + 5% + 5%) = 35% */
         .scorecard-table th:nth-child(4),
         .scorecard-table td:nth-child(4),
+        .scorecard-table th:nth-child(9),
+        .scorecard-table td:nth-child(9) {
+          width: 14%;
+          min-width: 1.8em;
+        }
         .scorecard-table th:nth-child(5),
         .scorecard-table td:nth-child(5),
-        .scorecard-table th:nth-child(9),
-        .scorecard-table td:nth-child(9),
         .scorecard-table th:nth-child(10),
         .scorecard-table td:nth-child(10) {
-          width: 17.5%;
-          min-width: 2em;
+          width: 21%;
+          min-width: 2.2em;
         }
       }
 
@@ -214,17 +378,20 @@
           width: 4.5%;
           min-width: 1em;
         }
-        /* Strokes and Points: 50% - (4% + 4.5% + 4.5%) = 37% / 2 = 18.5% each */
+        /* Strokes: narrower, Points: slightly wider - 50% - (4% + 4.5% + 4.5%) = 37% */
         .scorecard-table th:nth-child(4),
         .scorecard-table td:nth-child(4),
+        .scorecard-table th:nth-child(9),
+        .scorecard-table td:nth-child(9) {
+          width: 15%;
+          min-width: 1.6em;
+        }
         .scorecard-table th:nth-child(5),
         .scorecard-table td:nth-child(5),
-        .scorecard-table th:nth-child(9),
-        .scorecard-table td:nth-child(9),
         .scorecard-table th:nth-child(10),
         .scorecard-table td:nth-child(10) {
-          width: 18.5%;
-          min-width: 1.7em;
+          width: 22%;
+          min-width: 2em;
         }
       }
 
@@ -247,17 +414,20 @@
           width: 4%;
           min-width: 0.9em;
         }
-        /* Strokes and Points: 50% - (3.5% + 4% + 4%) = 38.5% / 2 = 19.25% each */
+        /* Strokes: narrower, Points: slightly wider - 50% - (3.5% + 4% + 4%) = 38.5% */
         .scorecard-table th:nth-child(4),
         .scorecard-table td:nth-child(4),
+        .scorecard-table th:nth-child(9),
+        .scorecard-table td:nth-child(9) {
+          width: 16%;
+          min-width: 1.5em;
+        }
         .scorecard-table th:nth-child(5),
         .scorecard-table td:nth-child(5),
-        .scorecard-table th:nth-child(9),
-        .scorecard-table td:nth-child(9),
         .scorecard-table th:nth-child(10),
         .scorecard-table td:nth-child(10) {
-          width: 19.25%;
-          min-width: 1.5em;
+          width: 22.5%;
+          min-width: 1.8em;
         }
       }
 
@@ -271,6 +441,9 @@
         border: 1px solid var(--light, #CACBCF);
         padding: 0.3em;
         background: var(--white, #fff);
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: var(--dark, #17181E);
         /* Remove spinner arrows - vendor prefixes for maximum compatibility */
         -moz-appearance: textfield;
         -webkit-appearance: none;
@@ -286,25 +459,31 @@
 
       @media (max-width: 768px) {
         .scorecard-table input[type="number"] {
-          width: 2.2em;
-          padding: 0.2em;
-          font-size: 0.9em;
+          width: 1.9em;
+          padding: 0.25em;
+          font-size: 1.3rem;
+          font-weight: 700;
+          color: var(--dark, #17181E);
         }
       }
 
       @media (max-width: 480px) {
         .scorecard-table input[type="number"] {
-          width: 2em;
-          padding: 0.15em;
-          font-size: 0.85em;
+          width: 1.7em;
+          padding: 0.2em;
+          font-size: 1.25rem;
+          font-weight: 700;
+          color: var(--dark, #17181E);
         }
       }
 
       @media (max-width: 360px) {
         .scorecard-table input[type="number"] {
-          width: 1.8em;
-          padding: 0.1em;
-          font-size: 0.8em;
+          width: 1.5em;
+          padding: 0.15em;
+          font-size: 1.2rem;
+          font-weight: 700;
+          color: var(--dark, #17181E);
         }
       }
 
@@ -314,30 +493,31 @@
       }
 
       .points-display {
-        font-weight: 600;
+        font-weight: 700;
         color: var(--color, #D73A42);
         min-width: 2em;
         display: inline-block;
+        font-size: 1.3rem;
       }
 
       @media (max-width: 768px) {
         .points-display {
           min-width: 1.4em;
-          font-size: 0.95em;
+          font-size: 1.4rem;
         }
       }
 
       @media (max-width: 480px) {
         .points-display {
           min-width: 1.2em;
-          font-size: 0.9em;
+          font-size: 1.35rem;
         }
       }
 
       @media (max-width: 360px) {
         .points-display {
           min-width: 1em;
-          font-size: 0.85em;
+          font-size: 1.3rem;
         }
       }
 
@@ -374,51 +554,53 @@
       }
 
       .hole-label {
-        font-weight: 600;
+        font-weight: 700;
+        font-size: 1.1rem;
       }
 
       @media (max-width: 768px) {
         .hole-label {
-          font-size: 0.9em;
+          font-size: 1.15rem;
         }
       }
 
       @media (max-width: 480px) {
         .hole-label {
-          font-size: 0.8em;
+          font-size: 1.1rem;
         }
       }
 
       @media (max-width: 360px) {
         .hole-label {
-          font-size: 0.75em;
+          font-size: 1.05rem;
         }
       }
 
       .par-label,
       .index-label {
         color: var(--gray, #57585a);
-        font-size: 0.85em;
+        font-size: 1rem;
+        font-weight: 600;
       }
 
       @media (max-width: 768px) {
         .par-label,
         .index-label {
-          font-size: 0.8em;
+          font-size: 1.05rem;
         }
       }
 
       @media (max-width: 480px) {
         .par-label,
         .index-label {
-          font-size: 0.7em;
+          font-size: 1rem;
         }
       }
 
       @media (max-width: 360px) {
         .par-label,
         .index-label {
-          font-size: 0.65em;
+          font-size: 0.95rem;
         }
       }
 
@@ -426,38 +608,43 @@
       @media (max-width: 768px) {
         .scorecard-table tr[style*="background"] td {
           padding: 0.4em 0.25em;
-          font-size: 0.85em;
+          font-size: 1rem;
           white-space: nowrap;
+          font-weight: 600;
         }
         .scorecard-table tr[style*="background"] td[colspan="4"] {
           padding-right: 0.5em;
           text-align: right;
+          font-size: 0.95rem;
         }
       }
 
       @media (max-width: 480px) {
         .scorecard-table tr[style*="background"] td {
           padding: 0.3em 0.15em;
-          font-size: 0.75em;
+          font-size: 0.95rem;
           white-space: nowrap;
+          font-weight: 600;
         }
         .scorecard-table tr[style*="background"] td[colspan="4"] {
           padding-right: 0.3em;
-          font-size: 0.7em;
+          font-size: 0.9rem;
         }
         .scorecard-table tr[style*="background: var(--color"] td {
-          font-size: 0.8em;
+          font-size: 1rem;
+          font-weight: 700;
         }
       }
 
       @media (max-width: 360px) {
         .scorecard-table tr[style*="background"] td {
           padding: 0.25em 0.1em;
-          font-size: 0.7em;
+          font-size: 0.9rem;
+          font-weight: 600;
         }
         .scorecard-table tr[style*="background"] td[colspan="4"] {
           padding-right: 0.25em;
-          font-size: 0.65em;
+          font-size: 0.85rem;
         }
       }
     </style>
@@ -532,14 +719,14 @@
                     <tr>
                       <th>Hole</th>
                       <th>Par</th>
-                      <th>Index</th>
+                      <th>(I)</th>
                       <th>Strokes</th>
-                      <th>Points</th>
+                      <th>Pts</th>
                       <th>Hole</th>
                       <th>Par</th>
-                      <th>Index</th>
+                      <th>(I)</th>
                       <th>Strokes</th>
-                      <th>Points</th>
+                      <th>Pts</th>
                     </tr>
                   </thead>
                   <tbody>
