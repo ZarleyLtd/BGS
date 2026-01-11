@@ -306,7 +306,10 @@ hr,
   max-width: none;
   text-align: center;
 }
-hr::before,
+hr::before {
+  content: none;
+}
+
 .separator::before {
   content: "•••";
   color: var(--dark);

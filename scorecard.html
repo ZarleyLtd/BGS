@@ -59,7 +59,7 @@
       .scorecard-header {
         margin-bottom: 1.5em;
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 3fr 1fr;
         gap: 1em;
         align-items: end;
       }
@@ -81,26 +81,69 @@
         }
       }
 
+      @media (max-width: 360px) {
+        .scorecard-header {
+          gap: 0.4em;
+        }
+      }
+
       .scorecard-header label {
-        display: block;
-        margin-bottom: 0.5em;
+        display: inline-block;
+        margin-right: 0.5em;
+        margin-bottom: 0;
         font-weight: 600;
+        white-space: nowrap;
       }
 
       .scorecard-header input,
       .scorecard-header select {
-        width: 100%;
+        flex: 1;
+        min-width: 0;
         padding: 0.6em;
         border: 1px solid var(--light, #CACBCF);
         border-radius: 3px;
         font-size: 1rem;
       }
 
+      .scorecard-header input[type="number"] {
+        -moz-appearance: textfield;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+
+      .scorecard-header input[type="number"]::-webkit-outer-spin-button,
+      .scorecard-header input[type="number"]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+
+      .scorecard-header > div {
+        display: flex;
+        align-items: center;
+        gap: 0.5em;
+      }
+
       @media (max-width: 480px) {
         .scorecard-header input,
         .scorecard-header select {
-          font-size: 1rem;
+          font-size: 0.95rem;
           padding: 0.5em;
+        }
+        .scorecard-header label {
+          font-size: 0.9rem;
+          margin-right: 0.3em;
+        }
+      }
+
+      @media (max-width: 360px) {
+        .scorecard-header input,
+        .scorecard-header select {
+          font-size: 0.9rem;
+          padding: 0.4em;
+        }
+        .scorecard-header label {
+          font-size: 0.85rem;
+          margin-right: 0.2em;
         }
       }
 
@@ -176,26 +219,26 @@
       }
 
       .scorecard-table td {
-        padding: 0.3em 0.5em;
+        padding: 0.05em 0.5em;
         text-align: center;
         border: 1px solid var(--light, #CACBCF);
       }
 
       @media (max-width: 768px) {
         .scorecard-table td {
-          padding: 0.25em 0.2em;
+          padding: 0.04em 0.2em;
         }
       }
 
       @media (max-width: 480px) {
         .scorecard-table td {
-          padding: 0.2em 0.1em;
+          padding: 0.03em 0.1em;
         }
       }
 
       @media (max-width: 360px) {
         .scorecard-table td {
-          padding: 0.15em 0.08em;
+          padding: 0.025em 0.08em;
         }
       }
 
@@ -450,9 +493,9 @@
         width: 3em;
         text-align: center;
         border: 1px solid var(--light, #CACBCF);
-        padding: 0.3em;
+        padding: 0.05em;
         background: var(--white, #fff);
-        font-size: 1.2rem;
+        font-size: 0.95rem;
         font-weight: 700;
         color: var(--dark, #17181E);
         /* Remove spinner arrows - vendor prefixes for maximum compatibility */
@@ -471,8 +514,8 @@
       @media (max-width: 768px) {
         .scorecard-table input[type="number"] {
           width: 1.9em;
-          padding: 0.25em;
-          font-size: 1.3rem;
+          padding: 0.04em;
+          font-size: 1rem;
           font-weight: 700;
           color: var(--dark, #17181E);
         }
@@ -481,8 +524,8 @@
       @media (max-width: 480px) {
         .scorecard-table input[type="number"] {
           width: 1.7em;
-          padding: 0.2em;
-          font-size: 1.25rem;
+          padding: 0.03em;
+          font-size: 0.95rem;
           font-weight: 700;
           color: var(--dark, #17181E);
         }
@@ -491,8 +534,8 @@
       @media (max-width: 360px) {
         .scorecard-table input[type="number"] {
           width: 1.5em;
-          padding: 0.15em;
-          font-size: 1.2rem;
+          padding: 0.025em;
+          font-size: 0.9rem;
           font-weight: 700;
           color: var(--dark, #17181E);
         }
@@ -594,10 +637,17 @@
         font-weight: 600;
       }
 
+      .index-label {
+        font-size: 0.9rem;
+      }
+
       @media (max-width: 768px) {
         .par-label,
         .index-label {
           font-size: 1.05rem;
+        }
+        .index-label {
+          font-size: 0.95rem;
         }
       }
 
@@ -606,12 +656,18 @@
         .index-label {
           font-size: 1rem;
         }
+        .index-label {
+          font-size: 0.9rem;
+        }
       }
 
       @media (max-width: 360px) {
         .par-label,
         .index-label {
           font-size: 0.95rem;
+        }
+        .index-label {
+          font-size: 0.85rem;
         }
       }
 
@@ -709,11 +765,11 @@
               <form id="scorecard-form" name="scorecard">
                 <div class="scorecard-header">
                   <div>
-                    <label for="player-name">Player Name:</label>
+                    <label for="player-name">Name:</label>
                     <input type="text" id="player-name" name="player" maxlength="30" placeholder="Enter your name">
                   </div>
                   <div>
-                    <label for="handicap">Handicap Index:</label>
+                    <label for="handicap">H/C:</label>
                     <input type="number" id="handicap" name="handicap" min="0" max="54" placeholder="0-54">
                   </div>
                   <div class="course-select-wrapper">
@@ -852,21 +908,16 @@
                     </tr>
                     <!-- Totals Row -->
                     <tr style="background: var(--dark, #17181E); color: var(--white, #fff); font-weight: 600;">
-                      <td colspan="4" style="text-align: right;">OUT (Holes 1-9):</td>
+                      <td colspan="3" style="text-align: right;">Front:</td>
                       <td id="out-score">0</td>
-                      <td colspan="4" style="text-align: right;">IN (Holes 10-18):</td>
-                      <td id="in-score">0</td>
-                    </tr>
-                    <tr style="background: var(--dark, #17181E); color: var(--white, #fff); font-weight: 600;">
-                      <td colspan="4" style="text-align: right;">OUT Points:</td>
                       <td id="out-points">0</td>
-                      <td colspan="4" style="text-align: right;">IN Points:</td>
+                      <td colspan="3" style="text-align: right;">Back:</td>
+                      <td id="in-score">0</td>
                       <td id="in-points">0</td>
                     </tr>
                     <tr style="background: var(--color, #D73A42); color: var(--white, #fff); font-weight: 600; font-size: 1.1em;">
-                      <td colspan="4" style="text-align: right;">TOTAL (18 Holes):</td>
+                      <td colspan="8" style="text-align: right;">Total:</td>
                       <td id="total-score">0</td>
-                      <td colspan="4" style="text-align: right;">TOTAL Points:</td>
                       <td id="total-points">0</td>
                     </tr>
                   </tbody>
