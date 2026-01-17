@@ -44,7 +44,19 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Scorecard page
   if (document.getElementById('scorecard-form')) {
-    ScorecardPage.init();
+    // Check if ScorecardPage is defined before calling init
+    if (typeof ScorecardPage !== 'undefined' && typeof ScorecardPage.init === 'function') {
+      ScorecardPage.init();
+    } else {
+      // Fallback: try again after a short delay in case of script loading timing issues
+      setTimeout(function() {
+        if (typeof ScorecardPage !== 'undefined' && typeof ScorecardPage.init === 'function') {
+          ScorecardPage.init();
+        } else {
+          console.error('ScorecardPage is not defined. Check if scorecard.js is loaded correctly.');
+        }
+      }, 100);
+    }
   }
   
   // Check for placeholder replacement (for old front page)

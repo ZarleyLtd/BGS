@@ -1,6 +1,9 @@
 // Scorecard Page - Golf Scorecard Calculator
 // Calculates Stableford points based on handicap and stroke inputs
 
+// Scorecard Page - Golf Scorecard Calculator
+// Calculates Stableford points based on handicap and stroke inputs
+
 const ScorecardPage = {
   // Course data - pars and stroke indexes
   courses: {
@@ -120,7 +123,9 @@ const ScorecardPage = {
 
   init: function() {
     const scorecardForm = document.getElementById('scorecard-form');
-    if (!scorecardForm) return;
+    if (!scorecardForm) {
+      return;
+    }
 
     // Set default course to Millicent
     this.currentCourse = 'Millicent';
@@ -144,11 +149,15 @@ const ScorecardPage = {
 
   populateCourseDropdown: function() {
     const select = document.getElementById('course-select');
-    if (!select) return;
+    if (!select) {
+      return;
+    }
 
     select.innerHTML = '<option value="">Select Course</option>';
     
-    Object.keys(this.courses).sort().forEach(courseName => {
+    const courseKeys = Object.keys(this.courses).sort();
+    
+    courseKeys.forEach(courseName => {
       const option = document.createElement('option');
       option.value = courseName;
       option.textContent = courseName;
@@ -218,6 +227,22 @@ const ScorecardPage = {
         if (e.key === 'Enter') {
           document.getElementById('handicap')?.focus();
         }
+      });
+    }
+
+    // Save score button
+    const saveBtn = document.getElementById('save-score-btn');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', () => {
+        this.saveScore();
+      });
+    }
+
+    // Load scores button
+    const loadBtn = document.getElementById('load-scores-btn');
+    if (loadBtn) {
+      loadBtn.addEventListener('click', () => {
+        this.loadSavedScores();
       });
     }
   },
@@ -374,5 +399,234 @@ const ScorecardPage = {
       if (input) input.value = '';
     }
     this.resetAllPoints();
-  }
+  },
+
+  // Save/Load functionality
+  saveScore: function() {
+    const playerName = document.getElementById('player-name')?.value.trim();
+    const handicap = parseInt(document.getElementById('handicap')?.value) || 0;
+    const course = this.currentCourse;
+    
+    if (!playerName) {
+      alert('Please enter your name');
+      return;
+    }
+    
+    if (!course) {
+      alert('Please select a course');
+      return;
+    }
+    
+    if (handicap === 0) {
+      alert('Please enter your handicap');
+      return;
+    }
+    
+    // Get all hole scores
+    const holes = [];
+    let hasScores = false;
+    for (let i = 1; i <= 18; i++) {
+      const input = document.getElementById(`hole-${i}`);
+      const value = input && input.value ? parseInt(input.value) : '';
+      holes.push(value);
+      if (value !== '') hasScores = true;
+    }
+    
+    if (!hasScores) {
+      alert('Please enter at least one hole score');
+      return;
+    }
+    
+    // Get totals
+    const totalScore = parseInt(document.getElementById('total-score')?.textContent) || 0;
+    const totalPoints = parseInt(document.getElementById('total-points')?.textContent) || 0;
+    const outScore = parseInt(document.getElementById('out-score')?.textContent) || 0;
+    const outPoints = parseInt(document.getElementById('out-points')?.textContent) || 0;
+    const inScore = parseInt(document.getElementById('in-score')?.textContent) || 0;
+    const inPoints = parseInt(document.getElementById('in-points')?.textContent) || 0;
+    
+    // Get current date
+    const date = new Date().toISOString().split('T')[0];
+    
+    const scoreData = {
+      playerName: playerName,
+      course: course,
+      date: date,
+      handicap: handicap,
+      holes: holes,
+      totalScore: totalScore,
+      totalPoints: totalPoints,
+      outScore: outScore,
+      outPoints: outPoints,
+      inScore: inScore,
+      inPoints: inPoints
+    };
+    
+    // Show loading state
+    const saveBtn = document.getElementById('save-score-btn');
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving...';
+    }
+    
+    ApiClient.post('saveScore', scoreData)
+      .then(result => {
+        alert('Score saved successfully!');
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Save Score';
+        }
+        // Refresh saved scores list
+        this.loadSavedScores();
+      })
+      .catch(error => {
+        alert('Error saving score: ' + error.message);
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Save Score';
+        }
+      });
+  },
+
+  loadSavedScores: function() {
+    const playerName = document.getElementById('player-name')?.value.trim();
+    const course = this.currentCourse || '';
+    
+    const loadBtn = document.getElementById('load-scores-btn');
+    if (loadBtn) {
+      loadBtn.disabled = true;
+      loadBtn.textContent = 'Loading...';
+    }
+    
+    ApiClient.post('loadScores', {
+      playerName: playerName || '',
+      course: course || '',
+      limit: 20
+    })
+      .then(result => {
+        this.displaySavedScores(result.scores || []);
+        if (loadBtn) {
+          loadBtn.disabled = false;
+          loadBtn.textContent = 'Load My Scores';
+        }
+      })
+      .catch(error => {
+        console.error('Error loading scores:', error);
+        if (loadBtn) {
+          loadBtn.disabled = false;
+          loadBtn.textContent = 'Load My Scores';
+        }
+        // Don't show error if API is not configured
+        if (error.message.includes('API URL not configured')) {
+          return;
+        }
+        alert('Error loading scores: ' + error.message);
+      });
+  },
+
+  displaySavedScores: function(scores) {
+    const container = document.getElementById('saved-scores-container');
+    if (!container) return;
+    
+    if (scores.length === 0) {
+      container.innerHTML = '<p style="text-align: center; color: var(--gray, #57585a);">No saved scores found</p>';
+      return;
+    }
+    
+    let html = '<div style="margin-top: 1em;"><h3 style="margin-bottom: 0.5em;">Saved Scores</h3>';
+    html += '<div style="max-height: 400px; overflow-y: auto;">';
+    
+    scores.forEach((score, index) => {
+      const date = new Date(score.date).toLocaleDateString();
+      html += `<div style="padding: 0.75em; margin-bottom: 0.5em; background: var(--lighter, #F3F3F3); border-radius: 3px; border: 1px solid var(--light, #CACBCF);">`;
+      html += `<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5em;">`;
+      html += `<div>`;
+      html += `<strong>${score.course}</strong> - ${date}`;
+      html += `<br><small>Score: ${score.totalScore} | Points: ${score.totalPoints}</small>`;
+      html += `</div>`;
+      html += `<div style="display: flex; gap: 0.5em;">`;
+      html += `<button class="load-score-btn" data-index="${index}" style="padding: 0.4em 0.8em; background: var(--color, #D73A42); color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.9rem;">Load</button>`;
+      html += `<button class="delete-score-btn" data-index="${index}" data-player="${score.playerName}" data-course="${score.course}" data-date="${score.date}" data-timestamp="${score.timestamp}" style="padding: 0.4em 0.8em; background: #666; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.9rem;">Delete</button>`;
+      html += `</div>`;
+      html += `</div>`;
+      html += `</div>`;
+    });
+    
+    html += '</div></div>';
+    container.innerHTML = html;
+    
+    // Store scores for later use
+    this.savedScores = scores;
+    
+    // Add event listeners
+    container.querySelectorAll('.load-score-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const index = parseInt(e.target.getAttribute('data-index'));
+        this.loadScoreIntoForm(scores[index]);
+      });
+    });
+    
+    container.querySelectorAll('.delete-score-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        if (confirm('Are you sure you want to delete this score?')) {
+          const playerName = e.target.getAttribute('data-player');
+          const course = e.target.getAttribute('data-course');
+          let date = e.target.getAttribute('data-date');
+          const timestamp = e.target.getAttribute('data-timestamp');
+          // Decode URL-encoded date (browser should do this automatically, but be safe)
+          if (date) {
+            date = decodeURIComponent(date.replace(/\+/g, ' '));
+          }
+          this.deleteScore({ playerName, course, date, timestamp });
+        }
+      });
+    });
+  },
+
+  loadScoreIntoForm: function(score) {
+    // Set player name
+    const playerInput = document.getElementById('player-name');
+    if (playerInput) playerInput.value = score.playerName;
+    
+    // Set handicap
+    const handicapInput = document.getElementById('handicap');
+    if (handicapInput) handicapInput.value = score.handicap;
+    
+    // Set course
+    this.currentCourse = score.course;
+    const courseSelect = document.getElementById('course-select');
+    if (courseSelect) {
+      courseSelect.value = score.course;
+      this.updateCourseData();
+    }
+    
+    // Set hole scores
+    for (let i = 0; i < 18; i++) {
+      const input = document.getElementById(`hole-${i + 1}`);
+      if (input && score.holes[i] !== '' && score.holes[i] !== null) {
+        input.value = score.holes[i];
+      } else if (input) {
+        input.value = '';
+      }
+    }
+    
+    // Recalculate scores
+    this.calculateScores();
+    
+    // Scroll to top of form
+    document.getElementById('scorecard-form')?.scrollIntoView({ behavior: 'smooth' });
+  },
+
+  deleteScore: function(data) {
+    ApiClient.post('deleteScore', data)
+      .then(result => {
+        alert('Score deleted successfully');
+        this.loadSavedScores();
+      })
+      .catch(error => {
+        alert('Error deleting score: ' + error.message);
+      });
+  },
+
+  savedScores: []
 };

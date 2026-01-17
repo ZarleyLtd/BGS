@@ -25,3 +25,4 @@
 4. **Script Loading Order**: Scripts must be loaded in this order: config → utils → components → pages → main.js
 5. **Relative Paths**: Always use relative paths (e.g., `assets/css/style.css`, not `/assets/css/style.css`).
 6. **No absolute URLs**: Never include `http://localhost` or drive letters like `C:/Users/`.
+7. the rnrREADMEME.md file is from another project and is included here for reference. do not change this file

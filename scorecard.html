@@ -727,7 +727,7 @@
   <body class="page-template">
     <header class="top js-header">
       <a class="logo" href="index.html">
-        <img src="assets/images/Ierne-logo-768x920.png" alt="Bushwhackers @ the Botanic" width="768" height="920">
+        <img src="assets/images/botanic.jpg" alt="Bushwhackers @ the Botanic" width="768" height="920">
       </a>
       <nav class="navbar js-navbar">
         <button class="navbar__toggle js-toggle" aria-label="Menu" aria-haspopup="true" aria-expanded="false">
@@ -777,6 +777,10 @@
                     <select id="course-select" name="course">
                       <option value="">Select Course</option>
                     </select>
+                  </div>
+                  <div style="grid-column: 1 / -1; display: flex; gap: 0.5em; margin-top: 0.5em; flex-wrap: wrap;">
+                    <button type="button" id="save-score-btn" style="padding: 0.6em 1.2em; background: var(--color, #D73A42); color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 1rem; font-weight: 600;">Save Score</button>
+                    <button type="button" id="load-scores-btn" style="padding: 0.6em 1.2em; background: var(--dark, #17181E); color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 1rem; font-weight: 600;">Load My Scores</button>
                   </div>
                 </div>
 
@@ -924,6 +928,8 @@
                 </table>
                 </div>
               </form>
+              
+              <div id="saved-scores-container" style="margin-top: 2em;"></div>
             </div>
           </section>
         </div>
@@ -968,7 +974,9 @@
         relatedContainerForOverlayMenuSelector: ".top",
       };
     </script>
-    <!-- Load scripts in order: utils → pages → main -->
+    <!-- Load scripts in order: config → utils → pages → main -->
+    <script src="assets/js/config/sheets-config.js"></script>
+    <script src="assets/js/utils/api-client.js"></script>
     <script src="assets/js/utils/image-loader.js"></script>
     <script src="assets/js/utils/nav-active.js"></script>
     <script src="assets/js/pages/scorecard.js"></script>
