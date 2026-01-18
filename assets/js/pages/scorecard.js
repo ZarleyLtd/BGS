@@ -180,6 +180,35 @@ const ScorecardPage = {
       if (parEl) parEl.textContent = this.pars[i];
       if (indexEl) indexEl.textContent = this.indexes[i];
     }
+    
+    // Update par totals
+    this.updateParTotals();
+  },
+
+  updateParTotals: function() {
+    if (!this.pars) return;
+    
+    let OUTtotPar = 0, INtotPar = 0;
+    
+    // Calculate front 9 par total
+    for (let i = 0; i < 9; i++) {
+      OUTtotPar += this.pars[i] || 0;
+    }
+    
+    // Calculate back 9 par total
+    for (let i = 9; i < 18; i++) {
+      INtotPar += this.pars[i] || 0;
+    }
+    
+    const totPar = OUTtotPar + INtotPar;
+    
+    const outParEl = document.getElementById('out-par');
+    const inParEl = document.getElementById('in-par');
+    const totalParEl = document.getElementById('total-par');
+    
+    if (outParEl) outParEl.textContent = OUTtotPar || '0';
+    if (inParEl) inParEl.textContent = INtotPar || '0';
+    if (totalParEl) totalParEl.textContent = 'Par ' + (totPar || '0');
   },
 
   setupEventListeners: function() {
@@ -335,25 +364,31 @@ const ScorecardPage = {
     // Calculate totals
     let OUTtotScore = 0, INtotScore = 0;
     let OUTtotPts = 0, INtotPts = 0;
+    let OUTtotPar = 0, INtotPar = 0;
 
+    // Calculate front 9 totals
     for (let i = 0; i < 9; i++) {
       const input = document.getElementById(`hole-${i + 1}`);
       if (input && input.value !== '') {
         OUTtotScore += strokes[i] || 0;
         OUTtotPts += points[i] || 0;
       }
+      OUTtotPar += this.pars[i] || 0;
     }
 
+    // Calculate back 9 totals
     for (let i = 9; i < 18; i++) {
       const input = document.getElementById(`hole-${i + 1}`);
       if (input && input.value !== '') {
         INtotScore += strokes[i] || 0;
         INtotPts += points[i] || 0;
       }
+      INtotPar += this.pars[i] || 0;
     }
 
     const totScore = OUTtotScore + INtotScore;
     const totPoints = OUTtotPts + INtotPts;
+    const totPar = OUTtotPar + INtotPar;
 
     // Update point displays
     for (let i = 0; i < 18; i++) {
@@ -372,10 +407,13 @@ const ScorecardPage = {
     // Update totals
     document.getElementById('out-score').textContent = OUTtotScore || '0';
     document.getElementById('out-points').textContent = OUTtotPts || '0';
+    document.getElementById('out-par').textContent = OUTtotPar || '0';
     document.getElementById('in-score').textContent = INtotScore || '0';
     document.getElementById('in-points').textContent = INtotPts || '0';
+    document.getElementById('in-par').textContent = INtotPar || '0';
     document.getElementById('total-score').textContent = totScore || '0';
     document.getElementById('total-points').textContent = totPoints || '0';
+    document.getElementById('total-par').textContent = 'Par ' + (totPar || '0');
   },
 
   resetAllPoints: function() {
@@ -386,10 +424,13 @@ const ScorecardPage = {
     
     document.getElementById('out-score').textContent = '0';
     document.getElementById('out-points').textContent = '0';
+    document.getElementById('out-par').textContent = '0';
     document.getElementById('in-score').textContent = '0';
     document.getElementById('in-points').textContent = '0';
+    document.getElementById('in-par').textContent = '0';
     document.getElementById('total-score').textContent = '0';
     document.getElementById('total-points').textContent = '0';
+    document.getElementById('total-par').textContent = 'Par 0';
   },
 
   clearInputs: function() {
@@ -544,9 +585,9 @@ const ScorecardPage = {
       html += `<strong>${score.course}</strong> - ${date}`;
       html += `<br><small>Score: ${score.totalScore} | Points: ${score.totalPoints}</small>`;
       html += `</div>`;
-      html += `<div style="display: flex; gap: 0.5em;">`;
-      html += `<button class="load-score-btn" data-index="${index}" style="padding: 0.4em 0.8em; background: var(--color, #D73A42); color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.9rem;">Load</button>`;
-      html += `<button class="delete-score-btn" data-index="${index}" data-player="${score.playerName}" data-course="${score.course}" data-date="${score.date}" data-timestamp="${score.timestamp}" style="padding: 0.4em 0.8em; background: #666; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.9rem;">Delete</button>`;
+      html += `<div style="display: flex; gap: 0.5em; align-items: baseline; flex-shrink: 0;">`;
+      html += `<button class="load-score-btn" data-index="${index}" style="margin: 0; background: var(--color, #D73A42); color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.9rem; font-weight: 600; line-height: 2.2em; height: 2.2em; padding: 0 0.8em; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; white-space: nowrap; vertical-align: baseline;">Load</button>`;
+      html += `<button class="delete-score-btn" data-index="${index}" data-player="${score.playerName}" data-course="${score.course}" data-date="${score.date}" data-timestamp="${score.timestamp}" style="margin: 0; background: #666; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.9rem; font-weight: 600; line-height: 2.2em; height: 2.2em; padding: 0 0.8em; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; white-space: nowrap; vertical-align: baseline;">Delete</button>`;
       html += `</div>`;
       html += `</div>`;
       html += `</div>`;

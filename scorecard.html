@@ -14,45 +14,54 @@
       .scorecard-wrapper {
         max-width: 1000px;
         margin: 2em auto;
-        padding: 0 0.5em;
+        padding: 0;
       }
 
       @media (max-width: 768px) {
         .scorecard-wrapper {
-          padding: 0 0.3em;
+          padding: 0;
           margin: 1em auto;
         }
       }
 
       @media (max-width: 480px) {
         .scorecard-wrapper {
-          padding: 0 0.2em;
+          padding: 0;
           margin: 0.5em auto;
         }
       }
 
       @media (max-width: 360px) {
         .scorecard-wrapper {
-          padding: 0 0.15em;
+          padding: 0;
           margin: 0.5em auto;
         }
+      }
+      
+      /* Override entry-wrapper padding for scorecard page */
+      .content__entry .entry-wrapper {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
       }
 
       .scorecard-table-container {
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
         margin: 1em 0;
+        padding: 0;
       }
 
       @media (max-width: 768px) {
         .scorecard-table-container {
           margin: 0.5em 0;
+          padding: 0;
         }
       }
 
       @media (max-width: 480px) {
         .scorecard-table-container {
           margin: 0.3em 0;
+          padding: 0;
         }
       }
 
@@ -60,30 +69,31 @@
         margin-bottom: 1.5em;
         display: grid;
         grid-template-columns: 3fr 1fr;
-        gap: 1em;
-        align-items: end;
+        gap: 0.5em;
+        align-items: center;
       }
 
       .scorecard-header .course-select-wrapper {
         grid-column: 1 / -1;
+        order: -1;
       }
 
       @media (max-width: 600px) {
         .scorecard-header {
-          gap: 0.8em;
+          gap: 0.4em;
         }
       }
 
       @media (max-width: 480px) {
         .scorecard-header {
-          gap: 0.6em;
+          gap: 0.3em;
           margin-bottom: 1em;
         }
       }
 
       @media (max-width: 360px) {
         .scorecard-header {
-          gap: 0.4em;
+          gap: 0.25em;
         }
       }
 
@@ -99,10 +109,11 @@
       .scorecard-header select {
         flex: 1;
         min-width: 0;
-        padding: 0.6em;
+        padding: 0.35em 0.6em;
         border: 1px solid var(--light, #CACBCF);
         border-radius: 3px;
         font-size: 1rem;
+        line-height: 1.4;
       }
 
       .scorecard-header input[type="number"] {
@@ -122,12 +133,16 @@
         align-items: center;
         gap: 0.5em;
       }
+      
+      .scorecard-header .course-select-wrapper {
+        margin-bottom: 0;
+      }
 
       @media (max-width: 480px) {
         .scorecard-header input,
         .scorecard-header select {
           font-size: 0.95rem;
-          padding: 0.5em;
+          padding: 0.3em 0.5em;
         }
         .scorecard-header label {
           font-size: 0.9rem;
@@ -139,7 +154,7 @@
         .scorecard-header input,
         .scorecard-header select {
           font-size: 0.9rem;
-          padding: 0.4em;
+          padding: 0.25em 0.4em;
         }
         .scorecard-header label {
           font-size: 0.85rem;
@@ -160,28 +175,28 @@
       @media (max-width: 768px) {
         .scorecard-table {
           font-size: 0.95rem;
-          min-width: 380px;
+          min-width: 360px;
         }
       }
 
       @media (max-width: 480px) {
         .scorecard-table {
           font-size: 0.9rem;
-          min-width: 320px;
+          min-width: 300px;
         }
       }
 
       @media (max-width: 360px) {
         .scorecard-table {
           font-size: 0.85rem;
-          min-width: 290px;
+          min-width: 270px;
         }
       }
 
       @media (max-width: 320px) {
         .scorecard-table {
           font-size: 0.8rem;
-          min-width: 275px;
+          min-width: 255px;
         }
       }
 
@@ -764,6 +779,12 @@
             <div class="scorecard-wrapper">
               <form id="scorecard-form" name="scorecard">
                 <div class="scorecard-header">
+                  <div class="course-select-wrapper">
+                    <label for="course-select">Course:</label>
+                    <select id="course-select" name="course">
+                      <option value="">Select Course</option>
+                    </select>
+                  </div>
                   <div>
                     <label for="player-name">Name:</label>
                     <input type="text" id="player-name" name="player" maxlength="30" placeholder="Enter your name">
@@ -771,16 +792,6 @@
                   <div>
                     <label for="handicap">H/C:</label>
                     <input type="number" id="handicap" name="handicap" min="0" max="54" placeholder="0-54">
-                  </div>
-                  <div class="course-select-wrapper">
-                    <label for="course-select">Course:</label>
-                    <select id="course-select" name="course">
-                      <option value="">Select Course</option>
-                    </select>
-                  </div>
-                  <div style="grid-column: 1 / -1; display: flex; gap: 0.5em; margin-top: 0.5em; flex-wrap: wrap;">
-                    <button type="button" id="save-score-btn" style="padding: 0.6em 1.2em; background: var(--color, #D73A42); color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 1rem; font-weight: 600;">Save Score</button>
-                    <button type="button" id="load-scores-btn" style="padding: 0.6em 1.2em; background: var(--dark, #17181E); color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 1rem; font-weight: 600;">Load My Scores</button>
                   </div>
                 </div>
 
@@ -911,21 +922,31 @@
                       <td><span class="points-display" id="points-18">0</span></td>
                     </tr>
                     <!-- Totals Row -->
-                    <tr style="background: var(--dark, #17181E); color: var(--white, #fff); font-weight: 600;">
-                      <td colspan="3" style="text-align: right;">Front:</td>
-                      <td id="out-score">0</td>
-                      <td id="out-points">0</td>
-                      <td colspan="3" style="text-align: right;">Back:</td>
-                      <td id="in-score">0</td>
-                      <td id="in-points">0</td>
+                    <tr style="background: var(--lighter, #F3F3F3); font-weight: 600;">
+                      <td style="text-align: right; background: var(--lighter, #F3F3F3);"></td>
+                      <td id="out-par" style="background: var(--lighter, #F3F3F3);">0</td>
+                      <td style="background: var(--lighter, #F3F3F3);"></td>
+                      <td id="out-score" style="background: var(--lighter, #F3F3F3);">0</td>
+                      <td id="out-points" style="background: var(--lighter, #F3F3F3); color: var(--color, #D73A42);">0</td>
+                      <td style="text-align: right; background: var(--lighter, #F3F3F3);"></td>
+                      <td id="in-par" style="background: var(--lighter, #F3F3F3);">0</td>
+                      <td style="background: var(--lighter, #F3F3F3);"></td>
+                      <td id="in-score" style="background: var(--lighter, #F3F3F3);">0</td>
+                      <td id="in-points" style="background: var(--lighter, #F3F3F3); color: var(--color, #D73A42);">0</td>
                     </tr>
-                    <tr style="background: var(--color, #D73A42); color: var(--white, #fff); font-weight: 600; font-size: 1.1em;">
-                      <td colspan="8" style="text-align: right;">Total:</td>
+                    <tr style="background: var(--dark, #17181E); color: var(--white, #fff); font-weight: 600; font-size: 1.1em;">
+                      <td colspan="6" style="text-align: right;">Total:</td>
+                      <td id="total-par">Par 0</td>
+                      <td></td>
                       <td id="total-score">0</td>
                       <td id="total-points">0</td>
                     </tr>
                   </tbody>
                 </table>
+                </div>
+                <div style="display: flex; justify-content: center; gap: 1em; margin-top: 1.5em; flex-wrap: wrap; align-items: baseline;">
+                  <button type="button" id="save-score-btn" style="margin: 0; background: var(--color, #D73A42); color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.95rem; font-weight: 600; line-height: 2.2em; height: 2.2em; padding: 0 1.2em; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; white-space: nowrap; vertical-align: baseline;">Save Score</button>
+                  <button type="button" id="load-scores-btn" style="margin: 0; background: var(--dark, #17181E); color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.95rem; font-weight: 600; line-height: 2.2em; height: 2.2em; padding: 0 1.2em; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; white-space: nowrap; vertical-align: baseline;">Load My Scores</button>
                 </div>
               </form>
               
