@@ -223,6 +223,11 @@ const ScorecardPage = {
           this.clearInputs();
         }
       });
+      
+      // Check for existing score when course loses focus
+      courseSelect.addEventListener('blur', () => {
+        this.checkForExistingScore();
+      });
     }
 
     // Handle input field changes (auto-tab and calculation)
@@ -257,6 +262,11 @@ const ScorecardPage = {
           document.getElementById('handicap')?.focus();
         }
       });
+      
+      // Check for existing score when name loses focus
+      playerInput.addEventListener('blur', () => {
+        this.checkForExistingScore();
+      });
     }
 
     // Save score button
@@ -264,14 +274,6 @@ const ScorecardPage = {
     if (saveBtn) {
       saveBtn.addEventListener('click', () => {
         this.saveScore();
-      });
-    }
-
-    // Load scores button
-    const loadBtn = document.getElementById('load-scores-btn');
-    if (loadBtn) {
-      loadBtn.addEventListener('click', () => {
-        this.loadSavedScores();
       });
     }
   },
@@ -442,6 +444,45 @@ const ScorecardPage = {
     this.resetAllPoints();
   },
 
+  // Normalize name for comparison (case-insensitive, ignore spaces)
+  normalizeName: function(name) {
+    if (!name) return '';
+    return name.toLowerCase().replace(/\s+/g, '');
+  },
+
+  // Check for existing score when course or name changes
+  checkForExistingScore: function() {
+    const playerName = document.getElementById('player-name')?.value.trim();
+    const course = this.currentCourse;
+    
+    // Only check if both course and name are provided
+    if (!playerName || !course) {
+      return;
+    }
+    
+    // Get current date
+    const date = new Date().toISOString().split('T')[0];
+    
+    // Check for existing score
+    ApiClient.post('checkExistingScore', {
+      playerName: playerName,
+      course: course,
+      date: date
+    })
+      .then(result => {
+        if (result.exists && result.score) {
+          // Load the existing score into the form
+          this.loadScoreIntoForm(result.score);
+        }
+      })
+      .catch(error => {
+        // Silently fail - API might not be configured
+        if (!error.message.includes('API URL not configured')) {
+          console.error('Error checking for existing score:', error);
+        }
+      });
+  },
+
   // Save/Load functionality
   saveScore: function() {
     const playerName = document.getElementById('player-name')?.value.trim();
@@ -463,14 +504,42 @@ const ScorecardPage = {
       return;
     }
     
-    // Get all hole scores
+    if (!this.pars || !this.indexes) {
+      alert('Please select a course');
+      return;
+    }
+    
+    // Get all hole scores (strokes)
     const holes = [];
+    const holePoints = [];
     let hasScores = false;
-    for (let i = 1; i <= 18; i++) {
-      const input = document.getElementById(`hole-${i}`);
-      const value = input && input.value ? parseInt(input.value) : '';
-      holes.push(value);
-      if (value !== '') hasScores = true;
+    
+    // Calculate shots received per hole
+    const shots = [];
+    for (let i = 0; i < 18; i++) {
+      if (this.indexes[i] <= handicap) {
+        shots[i] = Math.floor((handicap - this.indexes[i]) / 18) + 1;
+      } else {
+        shots[i] = Math.floor(Math.max((handicap - this.indexes[i]), 0) / 18);
+      }
+    }
+    
+    // Get strokes and calculate points for each hole
+    for (let i = 0; i < 18; i++) {
+      const input = document.getElementById(`hole-${i + 1}`);
+      const strokes = input && input.value ? parseInt(input.value) : 0;
+      holes.push(strokes);
+      
+      // Calculate points for this hole
+      let points = 0;
+      if (strokes > 0) {
+        const netStrokes = strokes - shots[i];
+        const netVsPar = this.pars[i] - netStrokes;
+        points = Math.max(netVsPar + 2, 0);
+      }
+      holePoints.push(points);
+      
+      if (strokes > 0) hasScores = true;
     }
     
     if (!hasScores) {
@@ -478,13 +547,46 @@ const ScorecardPage = {
       return;
     }
     
-    // Get totals
-    const totalScore = parseInt(document.getElementById('total-score')?.textContent) || 0;
-    const totalPoints = parseInt(document.getElementById('total-points')?.textContent) || 0;
-    const outScore = parseInt(document.getElementById('out-score')?.textContent) || 0;
-    const outPoints = parseInt(document.getElementById('out-points')?.textContent) || 0;
-    const inScore = parseInt(document.getElementById('in-score')?.textContent) || 0;
-    const inPoints = parseInt(document.getElementById('in-points')?.textContent) || 0;
+    // Calculate totals
+    let OUTtotScore = 0, INtotScore = 0;
+    let OUTtotPts = 0, INtotPts = 0;
+    let BACK6totScore = 0, BACK6totPts = 0;
+    let BACK3totScore = 0, BACK3totPts = 0;
+    
+    // Calculate front 9 totals (holes 1-9, indices 0-8)
+    for (let i = 0; i < 9; i++) {
+      if (holes[i] > 0) {
+        OUTtotScore += holes[i];
+        OUTtotPts += holePoints[i];
+      }
+    }
+    
+    // Calculate back 9 totals (holes 10-18, indices 9-17)
+    for (let i = 9; i < 18; i++) {
+      if (holes[i] > 0) {
+        INtotScore += holes[i];
+        INtotPts += holePoints[i];
+      }
+    }
+    
+    // Calculate back 6 totals (holes 13-18, indices 12-17)
+    for (let i = 12; i < 18; i++) {
+      if (holes[i] > 0) {
+        BACK6totScore += holes[i];
+        BACK6totPts += holePoints[i];
+      }
+    }
+    
+    // Calculate back 3 totals (holes 16-18, indices 15-17)
+    for (let i = 15; i < 18; i++) {
+      if (holes[i] > 0) {
+        BACK3totScore += holes[i];
+        BACK3totPts += holePoints[i];
+      }
+    }
+    
+    const totalScore = OUTtotScore + INtotScore;
+    const totalPoints = OUTtotPts + INtotPts;
     
     // Get current date
     const date = new Date().toISOString().split('T')[0];
@@ -494,13 +596,18 @@ const ScorecardPage = {
       course: course,
       date: date,
       handicap: handicap,
-      holes: holes,
+      holes: holes,  // Strokes for each hole
+      holePoints: holePoints,  // Points for each hole
       totalScore: totalScore,
       totalPoints: totalPoints,
-      outScore: outScore,
-      outPoints: outPoints,
-      inScore: inScore,
-      inPoints: inPoints
+      outScore: OUTtotScore,
+      outPoints: OUTtotPts,
+      inScore: INtotScore,
+      inPoints: INtotPts,
+      back6Score: BACK6totScore,
+      back6Points: BACK6totPts,
+      back3Score: BACK3totScore,
+      back3Points: BACK3totPts
     };
     
     // Show loading state
@@ -515,119 +622,21 @@ const ScorecardPage = {
         alert('Score saved successfully!');
         if (saveBtn) {
           saveBtn.disabled = false;
-          saveBtn.textContent = 'Save Score';
+          saveBtn.textContent = 'Submit Score';
         }
-        // Refresh saved scores list
-        this.loadSavedScores();
       })
       .catch(error => {
         alert('Error saving score: ' + error.message);
         if (saveBtn) {
           saveBtn.disabled = false;
-          saveBtn.textContent = 'Save Score';
+          saveBtn.textContent = 'Submit Score';
         }
       });
   },
 
-  loadSavedScores: function() {
-    const playerName = document.getElementById('player-name')?.value.trim();
-    const course = this.currentCourse || '';
-    
-    const loadBtn = document.getElementById('load-scores-btn');
-    if (loadBtn) {
-      loadBtn.disabled = true;
-      loadBtn.textContent = 'Loading...';
-    }
-    
-    ApiClient.post('loadScores', {
-      playerName: playerName || '',
-      course: course || '',
-      limit: 20
-    })
-      .then(result => {
-        this.displaySavedScores(result.scores || []);
-        if (loadBtn) {
-          loadBtn.disabled = false;
-          loadBtn.textContent = 'Load My Scores';
-        }
-      })
-      .catch(error => {
-        console.error('Error loading scores:', error);
-        if (loadBtn) {
-          loadBtn.disabled = false;
-          loadBtn.textContent = 'Load My Scores';
-        }
-        // Don't show error if API is not configured
-        if (error.message.includes('API URL not configured')) {
-          return;
-        }
-        alert('Error loading scores: ' + error.message);
-      });
-  },
-
-  displaySavedScores: function(scores) {
-    const container = document.getElementById('saved-scores-container');
-    if (!container) return;
-    
-    if (scores.length === 0) {
-      container.innerHTML = '<p style="text-align: center; color: var(--gray, #57585a);">No saved scores found</p>';
-      return;
-    }
-    
-    let html = '<div style="margin-top: 1em;"><h3 style="margin-bottom: 0.5em;">Saved Scores</h3>';
-    html += '<div style="max-height: 400px; overflow-y: auto;">';
-    
-    scores.forEach((score, index) => {
-      const date = new Date(score.date).toLocaleDateString();
-      html += `<div style="padding: 0.75em; margin-bottom: 0.5em; background: var(--lighter, #F3F3F3); border-radius: 3px; border: 1px solid var(--light, #CACBCF);">`;
-      html += `<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5em;">`;
-      html += `<div>`;
-      html += `<strong>${score.course}</strong> - ${date}`;
-      html += `<br><small>Score: ${score.totalScore} | Points: ${score.totalPoints}</small>`;
-      html += `</div>`;
-      html += `<div style="display: flex; gap: 0.5em; align-items: baseline; flex-shrink: 0;">`;
-      html += `<button class="load-score-btn" data-index="${index}" style="margin: 0; background: var(--color, #D73A42); color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.9rem; font-weight: 600; line-height: 2.2em; height: 2.2em; padding: 0 0.8em; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; white-space: nowrap; vertical-align: baseline;">Load</button>`;
-      html += `<button class="delete-score-btn" data-index="${index}" data-player="${score.playerName}" data-course="${score.course}" data-date="${score.date}" data-timestamp="${score.timestamp}" style="margin: 0; background: #666; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.9rem; font-weight: 600; line-height: 2.2em; height: 2.2em; padding: 0 0.8em; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; white-space: nowrap; vertical-align: baseline;">Delete</button>`;
-      html += `</div>`;
-      html += `</div>`;
-      html += `</div>`;
-    });
-    
-    html += '</div></div>';
-    container.innerHTML = html;
-    
-    // Store scores for later use
-    this.savedScores = scores;
-    
-    // Add event listeners
-    container.querySelectorAll('.load-score-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const index = parseInt(e.target.getAttribute('data-index'));
-        this.loadScoreIntoForm(scores[index]);
-      });
-    });
-    
-    container.querySelectorAll('.delete-score-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        if (confirm('Are you sure you want to delete this score?')) {
-          const playerName = e.target.getAttribute('data-player');
-          const course = e.target.getAttribute('data-course');
-          let date = e.target.getAttribute('data-date');
-          const timestamp = e.target.getAttribute('data-timestamp');
-          // Decode URL-encoded date (browser should do this automatically, but be safe)
-          if (date) {
-            date = decodeURIComponent(date.replace(/\+/g, ' '));
-          }
-          this.deleteScore({ playerName, course, date, timestamp });
-        }
-      });
-    });
-  },
 
   loadScoreIntoForm: function(score) {
-    // Set player name
-    const playerInput = document.getElementById('player-name');
-    if (playerInput) playerInput.value = score.playerName;
+    // Don't overwrite player name - keep what user entered
     
     // Set handicap
     const handicapInput = document.getElementById('handicap');
@@ -658,16 +667,4 @@ const ScorecardPage = {
     document.getElementById('scorecard-form')?.scrollIntoView({ behavior: 'smooth' });
   },
 
-  deleteScore: function(data) {
-    ApiClient.post('deleteScore', data)
-      .then(result => {
-        alert('Score deleted successfully');
-        this.loadSavedScores();
-      })
-      .catch(error => {
-        alert('Error deleting score: ' + error.message);
-      });
-  },
-
-  savedScores: []
 };
