@@ -134,9 +134,19 @@ const ScorecardPage = {
     // Try to set default course based on next outing
     await this.setDefaultCourseFromNextOuting();
 
-    // If no default was set, fall back to Millicent
+    // If no default was set, try to use Millicent, or fall back to first available course
     if (!this.currentCourse) {
-      this.currentCourse = 'Millicent';
+      const availableCourses = Object.keys(this.courses);
+      if (availableCourses.length > 0) {
+        // Try Millicent first if it exists
+        if (this.courses['Millicent']) {
+          this.currentCourse = 'Millicent';
+        } else {
+          // Otherwise use the first available course (sorted alphabetically)
+          this.currentCourse = availableCourses.sort()[0];
+          console.log(`No default course found, using first available: ${this.currentCourse}`);
+        }
+      }
     }
 
     // Populate course dropdown with the default course already set
@@ -147,10 +157,22 @@ const ScorecardPage = {
     
     // Ensure dropdown reflects the selected course (in case populateCourseDropdown didn't set it)
     const courseSelect = document.getElementById('course-select');
-    if (courseSelect) {
-      courseSelect.value = this.currentCourse;
-      // Trigger change event to ensure any listeners are notified
-      courseSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    if (courseSelect && this.currentCourse) {
+      // Verify the course exists in the dropdown before setting it
+      if (courseSelect.querySelector(`option[value="${this.currentCourse}"]`)) {
+        courseSelect.value = this.currentCourse;
+        // Trigger change event to ensure any listeners are notified
+        courseSelect.dispatchEvent(new Event('change', { bubbles: true }));
+      } else {
+        console.warn(`Course "${this.currentCourse}" not found in dropdown, selecting first available`);
+        // Select first non-empty option
+        const firstOption = courseSelect.querySelector('option:not([value=""])');
+        if (firstOption) {
+          this.currentCourse = firstOption.value;
+          courseSelect.value = this.currentCourse;
+          this.updateCourseData();
+        }
+      }
     }
 
     // Set up event listeners
@@ -232,12 +254,32 @@ const ScorecardPage = {
       }
       
       // Map club name to course key
-      const courseKey = OutingsConfig.mapClubNameToCourseKey(outing.clubName);
+      let courseKey = OutingsConfig.mapClubNameToCourseKey(outing.clubName);
       
       console.log(`Next outing: ${outing.clubName}, mapped to course key: ${courseKey || 'null'}`);
       
+      // If mapping failed, try direct matching against available course keys
       if (!courseKey) {
-        console.warn(`No course mapping found for "${outing.clubName}", using default course`);
+        const stripped = OutingsConfig.stripClubNameSuffixes(outing.clubName);
+        const lowerStripped = stripped.toLowerCase().replace(/\s+/g, '');
+        
+        // Try to find a course key that matches the stripped name
+        const availableCourseKeys = Object.keys(this.courses);
+        for (const key of availableCourseKeys) {
+          const keyLower = key.toLowerCase().replace(/\s+/g, '');
+          // Check if stripped name matches or contains the course key, or vice versa
+          if (keyLower === lowerStripped || 
+              keyLower.includes(lowerStripped) || 
+              lowerStripped.includes(keyLower)) {
+            courseKey = key;
+            console.log(`Found direct match: "${outing.clubName}" -> "${courseKey}"`);
+            break;
+          }
+        }
+      }
+      
+      if (!courseKey) {
+        console.warn(`No course mapping found for "${outing.clubName}", using default course. Available courses:`, Object.keys(this.courses).join(', '));
         return;
       }
       

@@ -102,14 +102,19 @@ const OutingsConfig = {
     // Mapping of stripped club names to course keys in scorecard
     // Only includes courses that actually exist in the scorecard courses object
     const mapping = {
-      'concr wood': 'ConcraWood',        // "Concra Wood" -> "ConcraWood"
-      'concrawood': 'ConcraWood',       // Alternative spelling
+      'concr wood': 'Concra Wood',        // "Concra Wood" -> "ConcraWood"
+      'concrawood': 'Concra Wood',       // Alternative spelling
       'balcarrick': 'Balcarrick',
-      'kilkee castle': 'KilkeaCastle',  // "Kilkee Castle" -> "KilkeaCastle" (note spelling difference)
-      'kilkeacastle': 'KilkeaCastle',
+      'kilkee castle': 'Kilkea Castle',  // "Kilkee Castle" -> "KilkeaCastle" (note spelling difference)
+      'kilkeacastle': 'Kilkea Castle',
       'rathsallagh': 'Rathsllagh',      // "Rathsallagh" -> "Rathsllagh" (note: typo in scorecard - one 'l')
       'rathsllagh': 'Rathsllagh',       // Alternative spelling
-      'newbridge': 'Newbridge'
+      'newbridge': 'Newbridge',
+      'powerscourt': 'Powerscourt West',      // "Powerscourt Golf Club" -> "Powerscourt"
+      'powerscourteast': 'Powerscourt East',  // Powerscourt East course
+      'powerscourtwest': 'Powerscourt West',  // Powerscourt West course
+      'powerscourtwa': 'Powerscourt East',    // Powerscourt Wa (East)
+      'powerscourtwb': 'Powerscourt West'     // Powerscourt Wb (West)
     };
     
     // Try exact match first (case-insensitive, no spaces)
@@ -130,7 +135,10 @@ const OutingsConfig = {
       'Balcarrick': 'Balcarrick',
       'Kilkee Castle': 'KilkeaCastle',
       'Rathsallagh': 'Rathsllagh',
-      'Newbridge': 'Newbridge'
+      'Newbridge': 'Newbridge',
+      'Powerscourt': 'Powerscourt',
+      'Powerscourt East': 'PowerscourtEast',
+      'Powerscourt West': 'PowerscourtWest'
     };
     
     if (mappingWithSpaces[stripped]) {
