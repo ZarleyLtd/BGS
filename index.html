@@ -23,13 +23,11 @@
     <style>
       /* Editor Notes Newsletter Styling */
       .editor-notes {
-        max-width: 800px;
-        margin: 2em auto;
-        padding: 2em;
-        background: #f9f9f9;
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        width: 100%;
+        margin: 2em 0;
+        padding: 3em 2em;
+        background: #f5e6d3;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
       }
       
       .editor-notes__content {
@@ -63,8 +61,8 @@
       
       @media (max-width: 768px) {
         .editor-notes {
-          padding: 1.5em;
-          margin: 1em auto;
+          padding: 2em 1.5em;
+          margin: 1em 0;
         }
       }
     </style>
@@ -152,29 +150,16 @@
         </div>
         <div class="entry-wrapper content__entry">
           <section class="hero hero--image">
-            <hr />
             <h2 style="text-align: center; margin-top: 1em">
               <span style="color: #2dc26b">Editor's notes...</span>
             </h2>
-            <hr />
             <div id="editor-notes-content" class="editor-notes">
               <!-- Content will be loaded from Google Sheet -->
             </div>
             <hr />
             <h2 style="text-align: center; margin-top: 1em">Next Outing</h2>
-            <div style="text-align: center; margin: 2em 0;">
-              <div style="position: relative; display: inline-block; max-width: 100%;">
-                <a href="https://powerscourtgolfclub.com/" target="_blank" rel="noreferrer noopener" style="display: block;">
-                  <img
-                    src="assets/images/2026-PowerscourtWa.png"
-                    alt="Powerscourt Golf Club"
-                    style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: block;"
-                  />
-                </a>
-                <a href="https://www.google.com/maps/place/Powerscourt+Golf+Club/@53.1871659,-6.1887573,17z/data=!3m1!4b1!4m6!3m5!1s0x4867a6fd021be2a7:0xc798d69aa9fc22df!8m2!3d53.1871627!4d-6.1861824!16zL20vMGZkeDZ0?entry=ttu" target="_blank" rel="noreferrer noopener" style="position: absolute; top: 8px; right: 8px; width: 40px; height: 40px; background-color: rgba(255, 255, 255, 0.9); border: 1px solid rgba(0, 0, 0, 0.1); border-radius: 4px; display: flex; align-items: center; justify-content: center; text-decoration: none; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" title="View on Google Maps">
-                  <span style="font-size: 20px;">📍</span>
-                </a>
-              </div>
+            <div id="next-outing-content">
+              <!-- Content will be loaded from Google Sheet -->
             </div>
             <hr />
             <div style="text-align: center; margin: 2em 0;">
@@ -223,9 +208,11 @@
     </footer>
     <!-- Editor Notes Scripts - Load in order: config → utils → components → pages → main -->
     <script src="assets/js/config/sheets-config.js"></script>
+    <script src="assets/js/config/outings-config.js"></script>
     <script src="assets/js/utils/image-loader.js"></script>
     <script src="assets/js/utils/csv-loader.js"></script>
     <script src="assets/js/components/editor-notes.js"></script>
+    <script src="assets/js/components/next-outing.js"></script>
     <script src="assets/js/main.js"></script>
     <script defer="defer" src="assets/js/scripts.min.js"></script>
     <script>

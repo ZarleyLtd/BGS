@@ -6,6 +6,7 @@
 
 const ScorecardPage = {
   // Course data - pars and stroke indexes
+  // Will be loaded from Google Sheet, fallback to hardcoded data if sheet fails
   courses: {
     Ardee: {
       pars: [4,3,4,5,4,4,4,4,3,4,4,4,3,5,4,4,4,4],
@@ -121,21 +122,138 @@ const ScorecardPage = {
   pars: null,
   indexes: null,
 
-  init: function() {
+  init: async function() {
     const scorecardForm = document.getElementById('scorecard-form');
     if (!scorecardForm) {
       return;
     }
 
-    // Set default course to Millicent
-    this.currentCourse = 'Millicent';
-    this.updateCourseData();
+    // Load courses from Google Sheet first
+    await this.loadCoursesFromSheet();
 
-    // Populate course dropdown
+    // Try to set default course based on next outing
+    await this.setDefaultCourseFromNextOuting();
+
+    // If no default was set, fall back to Millicent
+    if (!this.currentCourse) {
+      this.currentCourse = 'Millicent';
+    }
+
+    // Populate course dropdown with the default course already set
     this.populateCourseDropdown();
+    
+    // Update course data and display
+    this.updateCourseData();
+    
+    // Ensure dropdown reflects the selected course (in case populateCourseDropdown didn't set it)
+    const courseSelect = document.getElementById('course-select');
+    if (courseSelect) {
+      courseSelect.value = this.currentCourse;
+      // Trigger change event to ensure any listeners are notified
+      courseSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    }
 
     // Set up event listeners
     this.setupEventListeners();
+  },
+
+  /**
+   * Load courses from Google Sheet, fallback to hardcoded data if sheet fails
+   */
+  loadCoursesFromSheet: async function() {
+    try {
+      const url = SheetsConfig.getSheetUrl('courses');
+      if (!url) {
+        console.warn('Courses sheet URL not configured, using hardcoded courses');
+        return; // Keep existing hardcoded courses
+      }
+      
+      console.log('Loading courses from sheet:', url);
+      const loadedCourses = await CoursesLoader.load(url);
+      
+      if (loadedCourses && Object.keys(loadedCourses).length > 0) {
+        // Replace hardcoded courses with loaded courses
+        this.courses = loadedCourses;
+        console.log(`Successfully loaded ${Object.keys(this.courses).length} courses from sheet`);
+      } else {
+        console.warn('No courses loaded from sheet, using hardcoded courses');
+      }
+    } catch (error) {
+      console.warn('Failed to load courses from sheet, using hardcoded courses:', error);
+      // Keep existing hardcoded courses as fallback
+    }
+  },
+
+  /**
+   * Load next outing index from Google Sheet and set default course
+   */
+  setDefaultCourseFromNextOuting: async function() {
+    try {
+      const url = SheetsConfig.getSheetUrl('nextOuting');
+      if (!url) {
+        console.warn('Next outing sheet URL not configured, using default course');
+        return;
+      }
+      
+      // Load CSV with headers - Column A = Key, Column B = Value
+      const data = await CsvLoader.load(url, { header: true, skipEmptyLines: true, delimiter: ',' });
+      
+      if (!data || data.length === 0) {
+        console.warn('No next outing index received, using default course');
+        return;
+      }
+      
+      // Find the row where Key column (Column A) is "NextOuting"
+      const nextOutingRow = data.find(row => {
+        const key = row['Key'] || row['key'] || row[Object.keys(row)[0]];
+        return key && key.toString().trim().toLowerCase() === 'nextouting';
+      });
+      
+      if (!nextOutingRow) {
+        console.warn('No "NextOuting" row found in sheet, using default course');
+        return;
+      }
+      
+      // Get the value from Column B (Value column) - it's just a number
+      const valueColumn = nextOutingRow['Value'] || nextOutingRow['value'] || nextOutingRow[Object.keys(nextOutingRow)[1]] || '';
+      const indexValue = valueColumn ? valueColumn.toString().trim() : '';
+      const outingIndex = parseInt(indexValue, 10);
+      
+      if (isNaN(outingIndex) || outingIndex < 1 || outingIndex > OutingsConfig.OUTINGS_2026.length) {
+        console.warn(`Invalid outing index: ${outingIndex}, using default course`);
+        return;
+      }
+      
+      // Get the outing data
+      const outing = OutingsConfig.OUTINGS_2026[outingIndex - 1];
+      if (!outing || !outing.clubName) {
+        console.warn('Outing data not found, using default course');
+        return;
+      }
+      
+      // Map club name to course key
+      const courseKey = OutingsConfig.mapClubNameToCourseKey(outing.clubName);
+      
+      console.log(`Next outing: ${outing.clubName}, mapped to course key: ${courseKey || 'null'}`);
+      
+      if (!courseKey) {
+        console.warn(`No course mapping found for "${outing.clubName}", using default course`);
+        return;
+      }
+      
+      // Check if the course exists in the courses object
+      if (!this.courses[courseKey]) {
+        console.warn(`Course "${courseKey}" not found in courses list. Available courses:`, Object.keys(this.courses).join(', '));
+        return;
+      }
+      
+      // Set as default course
+      this.currentCourse = courseKey;
+      console.log(`Default course set to "${courseKey}" based on next outing: ${outing.clubName}`);
+    } catch (error) {
+      console.warn('Failed to load next outing for default course:', error);
+      // Silently fail and use default course
+    }
   },
 
   updateCourseData: function() {

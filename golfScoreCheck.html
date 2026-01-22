@@ -1,0 +1,348 @@
+<script>
+
+function add(a, b) {
+  return a + b;
+}
+
+function ifZero(ifThis, thenThis) {
+	var retVal;
+
+	if (ifThis == 0) 
+		{retVal = thenThis}
+	else
+  		{retVal = ifThis}
+
+  return retVal;
+}
+
+function autotab(current,to){
+
+	//Athy
+//var pars = [4,4,3,5,5,3,4,5,4,4,3,4,4,3,4,4,4,5];
+//var inds = [2,16,7,18,4,12,5,14,9,10,6,17,8,11,15,1,3,13];
+
+//Ballymoney
+//var pars = [4,4,4,4,3,5,4,3,4,4,4,4,5,5,3,4,4,3];
+//var inds = [6,4,8,12,14,10,2,18,16,9,1,17,13,11,7,15,3,5];
+	
+	//K Club (Palmer South)1,9,5];
+
+	//Blackbush (A-B)
+	//var pars = [4,3,5,4,4,4,5,3,4,5,4,3,4,4,4,4,3,5];
+	//var inds = [6,16,8,10,14,4,12,18,2,11,17,15,3,7,13,
+	//var pars = [5,4,4,3,4,4,3,4,5,5,3,5,3,4,4,4,4,5];
+	//var inds = [16,12,4,18,10,6,14,8,2,9,15,3,13,1,11,5,7,17];
+
+	//Blackbush (B-C)
+	//var pars = [5,3,5,3,4,4,4,4,5,4,3,5,4,4,4,3,4,4];
+	//var inds = [9,15,3,13,1,11,5,7,17,16,14,8,6,2,12,18,4,10];
+
+
+
+	//Powerscourt East
+//var pars = [4,5,3,4,3,5,4,4,4,4,4,5,3,4,4,3,5,4];
+//var inds = [3,13,17,9,7,5,11,1,15,6,8,16,14,12,4,18,2,10];
+
+	//Powerscourt West
+	// var pars = [5,3,4,4,4,3,5,4,4,4,3,4,4,4,4,5,3,5];
+	// var inds = [5,13,11,1,15,17,9,3,7,12,18,4,8,10,14,2,6,16];
+
+	//Corballis
+	//var pars = [3,4,4,3,4,3,4,4,3,3,4,5,3,4,4,4,3,4];
+	//var inds = [13,17,1,15,7,9,11,3,5,18,14,16,8,4,12,2,10,6];
+
+	//New Forest
+	//var pars = [4,3,4,4,5,5,4,4,3,4,3,4,4,4,5,3,5,4];
+	//var inds = [8,10,14,2,16,4,6,12,18,3,9,1,13,5,15,7,17,11];
+
+    //Beaverstown
+    //var pars = [4,4,3,4,5,4,3,4,5,4,3,4,5,4,5,4,3,4];
+	//var inds = [8,18,12,2,14,6,16,4,10,3,15,13,17,5,9,7,11,1];
+
+var Ardee_pars = [4,3,4,5,4,4,4,4,3,4,4,4,3,5,4,4,4,4];
+var Ardee_inds = [8,14,4,18,2,12,10,6,16,9,15,5,17,1,11,13,7,3];
+
+
+var DonabateYR_pars = [3,5,4,3,4,5,4,3,5,4,3,4,4,4,4,4,5,4];
+var DonabateYR_inds = [9,7,3,17,1,5,15,13,11,4,10,16,6,12,8,18,14,2];
+
+var DeerPark_pars = [4,3,4,4,4,3,5,4,5,4,3,4,4,5,3,4,4,5];
+var DeerPark_inds = [10,2,14,16,9,18,5,6,12,1,15,11,17,8,13,7,4,3];
+
+var Balcarrick_pars = [4,4,4,4,3,5,3,5,4,4,4,4,4,4,5,3,5,4];
+var Balcarrick_inds = [17,7,3,13,11,5,15,9,1,18,2,12,10,4,8,16,14,6];
+
+var Elmgreen_pars = [4,5,4,4,3,4,3,4,4,4,3,4,4,4,4,5,3,4];
+var Elmgreen_inds = [3,11,15,5,13,17,9,7,1,10,18,12,2,8,14,4,16,6];
+
+var HeadfortNew_pars = [4,5,4,3,4,5,3,4,4,4,3,4,4,5,4,5,3,4];
+var HeadfortNew_inds = [6,18,10,14,2,8,16,4,12,9,11,5,1,15,3,17,13,7];
+
+var HeadfortOld_pars = [5,3,4,5,4,4,5,3,4,3,5,4,4,3,4,4,4,4];
+var HeadfortOld_inds = [17,12,5,8,1,3,18,14,10,16,13,4,6,11,15,2,7,9];
+
+var HollywoodLakes_pars = [4,4,4,3,5,3,4,4,5,4,3,4,4,5,5,4,3,4];
+var HollywoodLakes_inds = [8,4,12,14,18,10,2,6,16,3,11,17,9,1,15,5,13,7];
+
+var KilkeaCastle_pars = [4,5,4,3,5,3,4,4,4,3,4,5,4,3,4,3,4,4];
+var KilkeaCastle_inds = [11,4,12,6,13,18,2,3,15,17,10,14,8,16,7,5,1,9];
+
+var Killeen_pars = [5,4,4,4,4,3,4,3,5,5,4,4,4,3,4,5,4,3];
+var Killeen_inds = [14,4,12,8,2,16,6,18,10,15,7,3,11,9,1,17,5,13];
+
+var KilleenCastle_pars = [4,5,4,4,4,3,5,3,4,4,4,5,4,3,5,3,4,4];
+var KilleenCastle_inds = [3,9,12,13,4,11,15,17,1,5,7,16,8,14,18,10,6,2];
+
+var Moyvalley_pars = [4,3,4,4,3,5,4,5,4,4,4,4,5,3,4,4,3,5];
+var Moyvalley_inds = [10,16,4,8,18,6,2,14,12,15,7,5,9,13,17,3,11,1];
+
+var Newbridge_pars = [5,4,3,5,4,3,4,4,5,4,3,4,4,3,4,4,4,5];
+var Newbridge_inds = [16,10,12,6,8,18,2,4,14,1,11,17,3,9,13,7,5,15];
+
+var Roganstown_pars = [4,3,4,5,5,3,4,4,3,5,4,3,4,4,4,4,3,5];
+var Roganstown_inds = [4,18,6,16,14,8,2,10,12,11,7,15,1,13,9,3,17,5];
+
+var Rosslare_pars = [4,3,5,4,4,4,5,3,4,3,4,5,4,3,4,4,4,5];
+var Rosslare_inds = [10,9,14,8,2,13,6,12,3,11,1,17,16,15,7,5,4,18];
+
+var Sillogue_pars = [4,3,5,4,5,4,3,4,3,4,4,5,3,4,4,4,4,4];
+var Sillogue_inds = [4,10,7,12,5,16,15,1,17,2,8,3,13,14,11,9,18,6];
+
+var RoyalCurragh_pars = [5,4,4,3,4,4,5,4,4,4,3,5,5,3,4,3,4,4];
+var RoyalCurragh_inds = [14,6,17,4,16,8,12,3,10,7,13,5,2,15,11,18,1,9];
+
+var Rathcore_pars = [5,4,4,3,4,4,4,4,3,5,3,4,5,4,4,3,4,5];
+var Rathcore_inds = [5,9,7,11,3,17,15,1,13,18,14,2,12,10,4,6,16,8];
+
+
+var StMargarets_pars = [4,3,5,4,3,4,4,5,4,4,4,5,3,4,3,5,5,4];
+var StMargarets_inds = [13,17,11,1,15,3,5,9,7,10,6,18,12,4,14,16,8,2];
+
+var Trim_pars = [3,5,5,4,4,4,3,4,5,4,4,3,4,4,4,4,4,5];
+var Trim_inds = [10,4,6,14,2,12,16,8,18,17,7,15,5,13,11,3,1,9];
+
+var Tulfarris_pars = [5,3,4,4,4,3,4,4,5,4,3,4,5,4,5,3,4,4];
+var Tulfarris_inds = [12,16,4,2,14,10,18,8,6,1,17,7,15,9,13,11,5,3];
+
+var Rathsllagh_pars = [5,4,4,3,4,5,3,4,4,4,5,4,3,4,4,5,3,4];
+var Rathsllagh_inds = [13,2,15,11,9,6,17,4,7,1,10,12,18,14,8,5,16,3];
+
+var ConcraWood_pars = [5,4,4,5,4,3,4,4,3,4,4,3,5,3,5,4,4,4];
+var ConcraWood_inds = [13,3,17,5,1,15,11,7,9,6,4,16,12,18,14,2,8,10];
+
+var Royal_Tara_pars = [5,4,5,4,3,4,4,3,5,4,3,4,3,5,3,4,4,5];
+var Royal_Tara_inds = [12,4,6,16,18,14,2,10,8,1,17,5,15,11,13,3,7,9];
+
+var Font_pars = [4,4,3,4,5,4,4,3,5,4,5,3,4,4,5,3,3,5];
+var Font_inds = [17,5,6,7,15,2,18,11,1,10,8,12,16,3,14,13,9,4];
+
+var Alicante_pars = [5,4,3,5,4,3,4,3,5,5,4,3,4,5,3,5,3,4];
+var Alicante_inds = [17,5,15,13,1,9,3,7,11,18,6,16,2,12,8,14,4,10];
+
+var millicent_pars = [5,5,4,3,4,4,4,4,3,4,4,4,5,4,3,5,3,5];
+var millicent_inds = [2,18,10,16,12,4,6,8,14,5,7,13,17,15,11,3,9,1];
+
+
+var pars = millicent_pars;
+var inds = millicent_inds;
+
+	var shots 	= [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+	var points 	= [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+	var strokes = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+    if (current.getAttribute && 
+      current.value.length==current.getAttribute("maxlength")) {
+        to.focus()
+        to.select() 
+		var hc = document.getElementById("hc").value;
+
+		if (document.getElementById("hole1").value) {strokes[0]=parseInt(document.getElementById("hole1").value);}
+		if (document.getElementById("hole2").value) {strokes[1]=parseInt(document.getElementById("hole2").value);}
+		if (document.getElementById("hole3").value) {strokes[2]=parseInt(document.getElementById("hole3").value);}
+		if (document.getElementById("hole4").value) {strokes[3]=parseInt(document.getElementById("hole4").value);}
+		if (document.getElementById("hole5").value) {strokes[4]=parseInt(document.getElementById("hole5").value);}
+		if (document.getElementById("hole6").value) {strokes[5]=parseInt(document.getElementById("hole6").value);}
+		if (document.getElementById("hole7").value) {strokes[6]=parseInt(document.getElementById("hole7").value);}
+		if (document.getElementById("hole8").value) {strokes[7]=parseInt(document.getElementById("hole8").value);}
+		if (document.getElementById("hole9").value) {strokes[8]=parseInt(document.getElementById("hole9").value);}
+		if (document.getElementById("hole10").value) {strokes[9]=parseInt(document.getElementById("hole10").value);}
+		if (document.getElementById("hole11").value) {strokes[10]=parseInt(document.getElementById("hole11").value);}
+		if (document.getElementById("hole12").value) {strokes[11]=parseInt(document.getElementById("hole12").value);}
+		if (document.getElementById("hole13").value) {strokes[12]=parseInt(document.getElementById("hole13").value);}
+		if (document.getElementById("hole14").value) {strokes[13]=parseInt(document.getElementById("hole14").value);}
+		if (document.getElementById("hole15").value) {strokes[14]=parseInt(document.getElementById("hole15").value);}
+		if (document.getElementById("hole16").value) {strokes[15]=parseInt(document.getElementById("hole16").value);}
+		if (document.getElementById("hole17").value) {strokes[16]=parseInt(document.getElementById("hole17").value);}
+		if (document.getElementById("hole18").value) {strokes[17]=parseInt(document.getElementById("hole18").value);}
+        
+
+		//calculate shots & points...
+		var i;
+		for (i = 0; i < 18; i++) {
+			switch (inds[i] > hc) {
+				case true:
+					shots[i] = shots[i] + Math.floor(Math.max(hc - inds[i],0)/18);
+					break;
+				case false:
+					shots[i] = shots[i] + Math.floor(Math.max(hc - inds[i],0)/18) + 1
+					break
+			}
+			//if (strokes[i]=0) {strokes[i]=99;}
+			points[i] = Math.max((pars[i] -(ifZero(strokes[i],99) - shots[i])) +2,0);
+		}
+
+		var OUTtotScore = 0;
+		var INtotScore = 0;
+		var OUTtotPts = 0;
+		var INtotPts = 0;
+		for (i = 0; i < 9; i++) {
+			OUTtotPts 	= OUTtotPts + points[i];
+		 	OUTtotScore = OUTtotScore + strokes[i]; 
+		}
+		for (i = 9; i < 18; i++) {
+			INtotPts 	= INtotPts + points[i];
+			INtotScore = INtotScore + strokes[i];
+		}
+		var totPoints = OUTtotPts + INtotPts;
+		var totScore = OUTtotScore + INtotScore;
+
+        document.getElementById("points01").innerHTML = points[0];
+        document.getElementById("points02").innerHTML = points[1];
+        document.getElementById("points03").innerHTML = points[2];
+        document.getElementById("points04").innerHTML = points[3];
+        document.getElementById("points05").innerHTML = points[4];
+        document.getElementById("points06").innerHTML = points[5];
+        document.getElementById("points07").innerHTML = points[6];
+        document.getElementById("points08").innerHTML = points[7];
+        document.getElementById("points09").innerHTML = points[8];
+        document.getElementById("points10").innerHTML = points[9];
+        document.getElementById("points11").innerHTML = points[10];
+        document.getElementById("points12").innerHTML = points[11];
+        document.getElementById("points13").innerHTML = points[12];
+        document.getElementById("points14").innerHTML = points[13];
+        document.getElementById("points15").innerHTML = points[14];
+        document.getElementById("points16").innerHTML = points[15];
+        document.getElementById("points17").innerHTML = points[16];
+        document.getElementById("points18").innerHTML = points[17];
+
+        document.getElementById("INtotScore").innerHTML = INtotScore;
+        document.getElementById("OUTtotScore").innerHTML = OUTtotScore;
+        document.getElementById("GtotScore").innerHTML = totScore;
+        document.getElementById("INtotPts").innerHTML = INtotPts;
+        document.getElementById("OUTtotPts").innerHTML = OUTtotPts;
+        document.getElementById("GtotPts").innerHTML = totPoints;
+
+    }
+}
+
+
+</script>
+
+<style type="text/css">
+	label.a {
+	  display: inline-block;
+	  width: 90px;
+	  height: 20px;
+	}
+	label.fill-10px {
+	  display: inline-block;
+	  width: 10px;
+	}
+	label.fill-a {
+	  display: inline-block;
+	  width: 65px;
+	}
+	label.fill-b {
+	  display: inline-block;
+	  width: 5px;
+	}
+	label.fill-c {
+	  display: inline-block;
+	  width: 20px;
+	  height: 17px;
+	}
+	label.fill-d {
+	  display: inline-block;
+	  width: 85px;
+	}
+	label.fill-e {
+	  display: inline-block;
+	  width: 148px;
+	  height: 20px;
+	}
+	input {
+	  display: inline-block;
+	  width: 40px;
+	  height: 20px;
+	  background: none;
+	  border: none;
+	  background-color: transparent!important;
+      border-color: transparent!important;
+      outline: transparent!important;
+	}
+	input.wide {
+	  display: inline-block;
+	  width: 110px;
+	  height: 20px;
+	  background: none;
+	  border: none;
+	  background-color: transparent!important;
+      border-color: transparent!important;
+      outline: transparent!important;
+	}    
+}
+</style>
+
+
+<form name="course">
+	<div>
+		<input class=wide type="text" id="player" onKeyup="autotab(this, document.course.hc)" maxlength=20> 
+		<label class=fill-a></label>
+		<input type="number" id="hc" min="1" max="99" onKeyup="autotab(this, document.course.hole1)" maxlength=2> 
+		<br><br><br>
+	</div>
+	<div>
+		<input type="number" id="hole1" min="1" max="9" onKeyup="autotab(this, document.course.hole2)" maxlength=1> 
+		<label class=fill-b></label><label class=a id=points01> 0 </label>
+		<input type="number" id="hole10" min="1" max="9" onKeyup="autotab(this, document.course.hole11)" maxlength=1>  
+		<label class=fill-b></label><label class=a id=points10> 0 </label>
+		<input type="number" id="hole2" min="1" max="9" onKeyup="autotab(this, document.course.hole3)" maxlength=1> 
+		<label class=fill-b></label><label class=a id=points02> 0 </label>
+		<input type="number" id="hole11" min="1" max="9" onKeyup="autotab(this, document.course.hole12)" maxlength=1> 
+		<label class=fill-b></label><label class=a id=points11> 0 </label>
+		<input type="number" id="hole3" min="1" max="9" onKeyup="autotab(this, document.course.hole4)" maxlength=1> 
+		<label class=fill-b></label><label class=a id=points03> 0 </label>
+		<input type="number" id="hole12" min="1" max="9" onKeyup="autotab(this, document.course.hole13)" maxlength=1> 
+		<label class=fill-b></label><label class=a id=points12> 0 </label>
+		<input type="number" id="hole4" min="1" max="9" onKeyup="autotab(this, document.course.hole5)" maxlength=1> 
+		<label class=fill-b></label><label class=a id=points04> 0 </label>
+		<input type="number" id="hole13" min="1" max="9" onKeyup="autotab(this, document.course.hole14)" maxlength=1> 
+		<label class=fill-b></label><label class=a id=points13> 0 </label>
+		<input type="number" id="hole5" min="1" max="9" onKeyup="autotab(this, document.course.hole6)" maxlength=1> 
+		<label class=fill-b></label><label class=a id=points05> 0 </label>
+		<input type="number" id="hole14" min="1" max="9" onKeyup="autotab(this, document.course.hole15)" maxlength=1> 
+		<label class=fill-b></label><label class=a id=points14> 0 </label>
+		<input type="number" id="hole6" min="1" max="9" onKeyup="autotab(this, document.course.hole7)" maxlength=1> 
+		<label class=fill-b></label><label class=a id=points06> 0 </label>
+		<input type="number" id="hole15" min="1" max="9" onKeyup="autotab(this, document.course.hole16)" maxlength=1> 
+		<label class=fill-b></label><label class=a id=points15> 0 </label>
+		<input type="number" id="hole7" min="1" max="9" onKeyup="autotab(this, document.course.hole8)" maxlength=1> 
+		<label class=fill-b></label><label class=a id=points07> 0 </label>
+		<input type="number" id="hole16" min="1" max="9" onKeyup="autotab(this, document.course.hole17)" maxlength=1> 
+		<label class=fill-b></label><label class=a id=points16> 0 </label>
+		<input type="number" id="hole8" min="1" max="9" onKeyup="autotab(this, document.course.hole9)" maxlength=1> 
+		<label class=fill-b></label><label class=a id=points08> 0 </label>
+		<input type="number" id="hole17" min="1" max="9" onKeyup="autotab(this, document.course.hole18)" maxlength=1> 
+		<label class=fill-b></label><label class=a id=points17> 0 </label>
+		<input type="number" id="hole9" min="1" max="9" onKeyup="autotab(this, document.course.hole10)" maxlength=1> 
+		<label class=fill-b></label><label class=a id=points09> 0 </label>
+		<input type="number" id="hole18" min="1" max="9" onKeyup="autotab(this, document.course.hole1)" maxlength=1> 
+		<label class=fill-b></label><label class=a id=points18> 0 </label>
+	</div>
+	<div>
+		<label class=fill-10px></label><label id=OUTtotScore>00</label><label class=fill-c></label><label id=OUTtotPts>00</label>
+		<label class=fill-d></label></label><label id=INtotScore>00</label><label class=fill-c></label><label id=INtotPts>00</label><br>
+		<label class=fill-e></label><label id=GtotScore>00</label><label class=fill-c></label><label id=GtotPts>00</label>
+
+	</div>
+</form>
+

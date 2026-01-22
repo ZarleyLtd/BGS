@@ -73,4 +73,11 @@ document.addEventListener('DOMContentLoaded', function() {
       EditorNotes.init();
     }
   }
+  
+  // Next Outing (home page)
+  if (document.getElementById('next-outing-content')) {
+    if (typeof NextOuting !== 'undefined' && typeof NextOuting.init === 'function') {
+      NextOuting.init();
+    }
+  }
 });
