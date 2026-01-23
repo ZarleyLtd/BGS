@@ -162,6 +162,223 @@
         }
       }
 
+      /* CSS Grid-based scorecard - ensures identical column widths by design */
+      /* Both sides use the SAME column template, guaranteeing identical widths */
+      .scorecard-grid {
+        display: grid;
+        width: 100%;
+        background: var(--page-bg, #fff);
+        margin: 0;
+        font-size: 1rem;
+        min-width: 600px;
+        /* Define column pattern once - repeat for both sides */
+        /* Columns 1-5: Front 9 (Hole, Par, Index, Strokes, Points) */
+        /* Columns 6-10: Back 9 (Hole, Par, Index, Strokes, Points) - IDENTICAL widths */
+        grid-template-columns: 
+          /* Front 9: Hole, Par, Index, Strokes, Points */
+          10% 6% 5% 16% 13%
+          /* Back 9: Hole, Par, Index, Strokes, Points - SAME widths */
+          10% 6% 5% 16% 13%;
+        border: 1px solid var(--light, #CACBCF);
+      }
+      
+      /* Grid header and rows use display: contents to participate in parent grid */
+      .scorecard-grid-header,
+      .scorecard-grid-row {
+        display: contents;
+      }
+      
+      /* Header cells */
+      .scorecard-grid-header > * {
+        background: var(--dark, #17181E);
+        color: var(--white, #fff);
+        padding: 0.5em 0.5em;
+        text-align: center;
+        font-weight: 600;
+        font-size: 0.9rem;
+        border: 1px solid var(--light, #CACBCF);
+        box-sizing: border-box;
+      }
+      
+      /* Visual divider on column 6 (first column of back 9) */
+      .scorecard-grid-header > *:nth-child(6),
+      .scorecard-grid-row > *:nth-child(6) {
+        border-left: 2px solid var(--dark, #17181E);
+      }
+      
+      /* Body row cells */
+      .scorecard-grid-row > * {
+        padding: 0.05em 0.5em;
+        text-align: center;
+        border: 1px solid var(--light, #CACBCF);
+        box-sizing: border-box;
+      }
+      
+      /* Even rows background */
+      .scorecard-grid-row:nth-child(even) > * {
+        background: var(--lighter, #F3F3F3);
+      }
+      
+      /* Grid input and label styling - match table styles */
+      .scorecard-grid input[type="number"] {
+        width: 3em;
+        text-align: center;
+        border: 1px solid var(--light, #CACBCF);
+        padding: 0.05em;
+        background: var(--white, #fff);
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #000000;
+        -moz-appearance: textfield;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+      
+      .scorecard-grid input[type="number"]::-webkit-outer-spin-button,
+      .scorecard-grid input[type="number"]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+      
+      .scorecard-grid input[type="number"]:focus {
+        border-color: #2E7D32;
+        outline: none;
+      }
+      
+      .scorecard-grid .hole-label {
+        font-weight: 700;
+        font-size: 1.1rem;
+      }
+      
+      .scorecard-grid .par-label,
+      .scorecard-grid .index-label {
+        color: var(--gray, #57585a);
+        font-size: 1rem;
+        font-weight: 600;
+      }
+      
+      .scorecard-grid .index-label {
+        font-size: 0.9rem;
+      }
+      
+      .scorecard-grid .points-display {
+        font-weight: 700;
+        color: #2E7D32;
+        min-width: 2em;
+        display: inline-block;
+        font-size: 1.3rem;
+      }
+      
+      /* Responsive grid columns */
+      @media (max-width: 768px) {
+        .scorecard-grid {
+          font-size: 0.95rem;
+          min-width: 360px;
+          grid-template-columns: 
+            10% 6% 5% 16% 13%
+            10% 6% 5% 16% 13%;
+        }
+        .scorecard-grid-header > * {
+          padding: 0.35em 0.2em;
+          font-size: 0.85rem;
+        }
+        .scorecard-grid-row > * {
+          padding: 0.04em 0.2em;
+        }
+        .scorecard-grid input[type="number"] {
+          width: 1.9em;
+          padding: 0.04em;
+          font-size: 1rem;
+        }
+        .scorecard-grid .hole-label {
+          font-size: 1.15rem;
+        }
+        .scorecard-grid .par-label,
+        .scorecard-grid .index-label {
+          font-size: 1.05rem;
+        }
+        .scorecard-grid .index-label {
+          font-size: 0.95rem;
+        }
+        .scorecard-grid .points-display {
+          min-width: 1.4em;
+          font-size: 1.4rem;
+        }
+      }
+      
+      @media (max-width: 480px) {
+        .scorecard-grid {
+          font-size: 0.9rem;
+          min-width: 300px;
+          grid-template-columns: 
+            10% 6% 5% 16% 13%
+            10% 6% 5% 16% 13%;
+        }
+        .scorecard-grid-header > * {
+          padding: 0.3em 0.1em;
+          font-size: 0.8rem;
+        }
+        .scorecard-grid-row > * {
+          padding: 0.03em 0.1em;
+        }
+        .scorecard-grid input[type="number"] {
+          width: 1.7em;
+          padding: 0.03em;
+          font-size: 0.95rem;
+        }
+        .scorecard-grid .hole-label {
+          font-size: 1.1rem;
+        }
+        .scorecard-grid .par-label,
+        .scorecard-grid .index-label {
+          font-size: 1rem;
+        }
+        .scorecard-grid .index-label {
+          font-size: 0.9rem;
+        }
+        .scorecard-grid .points-display {
+          min-width: 1.2em;
+          font-size: 1.35rem;
+        }
+      }
+      
+      @media (max-width: 360px) {
+        .scorecard-grid {
+          font-size: 0.85rem;
+          min-width: 270px;
+          grid-template-columns: 
+            10% 6% 5% 16% 13%
+            10% 6% 5% 16% 13%;
+        }
+        .scorecard-grid-header > * {
+          padding: 0.25em 0.08em;
+          font-size: 0.75rem;
+        }
+        .scorecard-grid-row > * {
+          padding: 0.025em 0.08em;
+        }
+        .scorecard-grid input[type="number"] {
+          width: 1.5em;
+          padding: 0.025em;
+          font-size: 0.9rem;
+        }
+        .scorecard-grid .hole-label {
+          font-size: 1.05rem;
+        }
+        .scorecard-grid .par-label,
+        .scorecard-grid .index-label {
+          font-size: 0.95rem;
+        }
+        .scorecard-grid .index-label {
+          font-size: 0.85rem;
+        }
+        .scorecard-grid .points-display {
+          min-width: 1em;
+          font-size: 1.3rem;
+        }
+      }
+      
+      /* Legacy table styles - will be removed after conversion */
       .scorecard-table {
         width: 100%;
         border-collapse: collapse;
@@ -170,6 +387,20 @@
         font-size: 1rem;
         table-layout: fixed;
         min-width: 600px;
+      }
+      
+      /* Ensure all table cells use border-box so borders don't affect width calculations */
+      .scorecard-table th,
+      .scorecard-table td {
+        box-sizing: border-box;
+      }
+      
+      /* Force index columns to have identical width calculation - ensure both use same box model */
+      .scorecard-table th:nth-child(3),
+      .scorecard-table td:nth-child(3),
+      .scorecard-table th:nth-child(8),
+      .scorecard-table td:nth-child(8) {
+        box-sizing: border-box;
       }
 
       @media (max-width: 768px) {
@@ -210,26 +441,27 @@
         text-align: center;
         font-weight: 600;
         border: 1px solid var(--light, #CACBCF);
+        font-size: 0.9rem;
       }
 
       @media (max-width: 768px) {
         .scorecard-table th {
           padding: 0.35em 0.2em;
-          font-size: 1em;
+          font-size: 0.85rem;
         }
       }
 
       @media (max-width: 480px) {
         .scorecard-table th {
           padding: 0.3em 0.1em;
-          font-size: 0.95em;
+          font-size: 0.8rem;
         }
       }
 
       @media (max-width: 360px) {
         .scorecard-table th {
           padding: 0.25em 0.08em;
-          font-size: 0.9em;
+          font-size: 0.75rem;
         }
       }
 
@@ -390,28 +622,108 @@
         }
       }
 
-      /* Compact columns for Hole, Par, Index on mobile - very narrow */
-      /* Each group of 5 columns should total 50% (100% for all 10) */
+      /* Visual divider between front 9 and back 9 */
+      .scorecard-table th:nth-child(6),
+      .scorecard-table td:nth-child(6) {
+        border-left: 2px solid var(--dark, #17181E);
+      }
+
+      /* Column width system using colgroup - ensures consistent widths */
+      /* Desktop: Base widths */
+      .scorecard-table col.col-hole {
+        width: 6%;
+      }
+      .scorecard-table col.col-par {
+        width: 5%;
+      }
+      /* Index columns - CRITICAL: Must be identical for columns 3 and 8 */
+      .scorecard-table col.col-index {
+        width: 4%;
+      }
+      .scorecard-table col.col-strokes {
+        width: 20%;
+      }
+      .scorecard-table col.col-points {
+        width: 15%;
+      }
+      
+      /* Also set on cells for compatibility */
+      .scorecard-table th:nth-child(1),
+      .scorecard-table td:nth-child(1),
+      .scorecard-table th:nth-child(6),
+      .scorecard-table td:nth-child(6) {
+        width: 6%;
+      }
+      .scorecard-table th:nth-child(2),
+      .scorecard-table td:nth-child(2),
+      .scorecard-table th:nth-child(7),
+      .scorecard-table td:nth-child(7) {
+        width: 5%;
+      }
+      .scorecard-table th:nth-child(3),
+      .scorecard-table td:nth-child(3),
+      .scorecard-table th:nth-child(8),
+      .scorecard-table td:nth-child(8) {
+        width: 4%;
+        box-sizing: border-box;
+      }
+      .scorecard-table th:nth-child(4),
+      .scorecard-table td:nth-child(4),
+      .scorecard-table th:nth-child(9),
+      .scorecard-table td:nth-child(9) {
+        width: 20%;
+      }
+      .scorecard-table th:nth-child(5),
+      .scorecard-table td:nth-child(5),
+      .scorecard-table th:nth-child(10),
+      .scorecard-table td:nth-child(10) {
+        width: 15%;
+      }
+
+      /* Mobile breakpoints - ensure index columns match exactly using colgroup */
       @media (max-width: 768px) {
+        .scorecard-table col.col-hole {
+          width: 5%;
+        }
+        .scorecard-table col.col-par {
+          width: 5%;
+        }
+        .scorecard-table col.col-index {
+          width: 5%;
+        }
+        .scorecard-table col.col-strokes {
+          width: 14%;
+        }
+        .scorecard-table col.col-points {
+          width: 21%;
+        }
+        
         .scorecard-table th:nth-child(1),
         .scorecard-table td:nth-child(1),
         .scorecard-table th:nth-child(6),
         .scorecard-table td:nth-child(6) {
           width: 5%;
           min-width: 1.2em;
+          max-width: 1.2em;
         }
         .scorecard-table th:nth-child(2),
         .scorecard-table td:nth-child(2),
+        .scorecard-table th:nth-child(7),
+        .scorecard-table td:nth-child(7) {
+          width: 5%;
+          min-width: 1.2em;
+          max-width: 1.2em;
+        }
+        /* Index columns - MUST match exactly */
         .scorecard-table th:nth-child(3),
         .scorecard-table td:nth-child(3),
-        .scorecard-table th:nth-child(7),
-        .scorecard-table td:nth-child(7),
         .scorecard-table th:nth-child(8),
         .scorecard-table td:nth-child(8) {
           width: 5%;
           min-width: 1.2em;
+          max-width: 1.2em;
+          box-sizing: border-box;
         }
-        /* Strokes: narrower, Points: slightly wider - 50% - (5% + 5% + 5%) = 35% */
         .scorecard-table th:nth-child(4),
         .scorecard-table td:nth-child(4),
         .scorecard-table th:nth-child(9),
@@ -429,25 +741,48 @@
       }
 
       @media (max-width: 480px) {
+        .scorecard-table col.col-hole {
+          width: 4%;
+        }
+        .scorecard-table col.col-par {
+          width: 4.5%;
+        }
+        .scorecard-table col.col-index {
+          width: 4.5%;
+        }
+        .scorecard-table col.col-strokes {
+          width: 15%;
+        }
+        .scorecard-table col.col-points {
+          width: 22%;
+        }
+        
         .scorecard-table th:nth-child(1),
         .scorecard-table td:nth-child(1),
         .scorecard-table th:nth-child(6),
         .scorecard-table td:nth-child(6) {
           width: 4%;
           min-width: 1em;
+          max-width: 1em;
         }
         .scorecard-table th:nth-child(2),
         .scorecard-table td:nth-child(2),
+        .scorecard-table th:nth-child(7),
+        .scorecard-table td:nth-child(7) {
+          width: 4.5%;
+          min-width: 1em;
+          max-width: 1em;
+        }
+        /* Index columns - MUST match exactly */
         .scorecard-table th:nth-child(3),
         .scorecard-table td:nth-child(3),
-        .scorecard-table th:nth-child(7),
-        .scorecard-table td:nth-child(7),
         .scorecard-table th:nth-child(8),
         .scorecard-table td:nth-child(8) {
           width: 4.5%;
           min-width: 1em;
+          max-width: 1em;
+          box-sizing: border-box;
         }
-        /* Strokes: narrower, Points: slightly wider - 50% - (4% + 4.5% + 4.5%) = 37% */
         .scorecard-table th:nth-child(4),
         .scorecard-table td:nth-child(4),
         .scorecard-table th:nth-child(9),
@@ -465,25 +800,48 @@
       }
 
       @media (max-width: 360px) {
+        .scorecard-table col.col-hole {
+          width: 3.5%;
+        }
+        .scorecard-table col.col-par {
+          width: 4%;
+        }
+        .scorecard-table col.col-index {
+          width: 4%;
+        }
+        .scorecard-table col.col-strokes {
+          width: 16%;
+        }
+        .scorecard-table col.col-points {
+          width: 22.5%;
+        }
+        
         .scorecard-table th:nth-child(1),
         .scorecard-table td:nth-child(1),
         .scorecard-table th:nth-child(6),
         .scorecard-table td:nth-child(6) {
           width: 3.5%;
           min-width: 0.9em;
+          max-width: 0.9em;
         }
         .scorecard-table th:nth-child(2),
         .scorecard-table td:nth-child(2),
+        .scorecard-table th:nth-child(7),
+        .scorecard-table td:nth-child(7) {
+          width: 4%;
+          min-width: 0.9em;
+          max-width: 0.9em;
+        }
+        /* Index columns - MUST match exactly */
         .scorecard-table th:nth-child(3),
         .scorecard-table td:nth-child(3),
-        .scorecard-table th:nth-child(7),
-        .scorecard-table td:nth-child(7),
         .scorecard-table th:nth-child(8),
         .scorecard-table td:nth-child(8) {
           width: 4%;
           min-width: 0.9em;
+          max-width: 0.9em;
+          box-sizing: border-box;
         }
-        /* Strokes: narrower, Points: slightly wider - 50% - (3.5% + 4% + 4%) = 38.5% */
         .scorecard-table th:nth-child(4),
         .scorecard-table td:nth-child(4),
         .scorecard-table th:nth-child(9),
@@ -686,6 +1044,12 @@
         }
       }
 
+      /* 18-hole total row styling */
+      #total-par {
+        white-space: nowrap;
+        text-align: right !important;
+      }
+
       /* Total rows styling adjustments for mobile */
       @media (max-width: 768px) {
         .scorecard-table tr[style*="background"] td {
@@ -727,6 +1091,180 @@
         .scorecard-table tr[style*="background"] td[colspan="4"] {
           padding-right: 0.25em;
           font-size: 0.85rem;
+        }
+      }
+
+      /* User-friendly message system */
+      .scorecard-message {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #2E7D32;
+        color: var(--white, #fff);
+        padding: 1.5em 2em;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        z-index: 10000;
+        max-width: 90%;
+        text-align: center;
+        font-size: 1rem;
+        line-height: 1.5;
+      }
+
+      .scorecard-message button {
+        margin-top: 1em;
+        padding: 0.6em 1.5em;
+        background: var(--color, #D73A42);
+        color: var(--white, #fff);
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.95rem;
+        font-weight: 600;
+        transition: background 0.2s;
+      }
+
+      .scorecard-message button:hover {
+        background: #b82e35;
+      }
+
+      .scorecard-message button:focus {
+        outline: 2px solid var(--white, #fff);
+        outline-offset: 2px;
+      }
+
+      /* Subtle loading message (non-blocking) - positioned below name field */
+      .scorecard-header {
+        position: relative;
+      }
+
+      .scorecard-loading-message {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        margin-top: -0.2em;
+        background: rgba(46, 125, 50, 0.1);
+        color: var(--white, #fff);
+        padding: 0.5em 1em;
+        border-radius: 4px;
+        z-index: 100;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 0.6em;
+        animation: slideInDown 0.3s ease-out;
+        white-space: nowrap;
+        font-weight: 500;
+      }
+
+      .scorecard-loading-message span {
+        opacity: 1;
+        color: var(--white, #fff);
+      }
+
+      .scorecard-loading-message .spinner {
+        opacity: 1;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: var(--white, #fff);
+      }
+
+      @keyframes slideInDown {
+        from {
+          transform: translateY(-10px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+
+      @keyframes slideOutUp {
+        from {
+          transform: translateY(0);
+          opacity: 1;
+        }
+        to {
+          transform: translateY(-10px);
+          opacity: 0;
+        }
+      }
+
+      .scorecard-loading-message.fade-out {
+        animation: slideOutUp 0.3s ease-out forwards;
+      }
+
+      .scorecard-loading-message .spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: var(--white, #fff);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @media (max-width: 480px) {
+        .scorecard-message {
+          padding: 1.2em 1.5em;
+          font-size: 0.95rem;
+        }
+
+        .scorecard-loading-message {
+          padding: 0.5em 1em;
+          font-size: 0.85rem;
+        }
+      }
+
+      /* Saving indicator with spinner */
+      .scorecard-saving-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5em;
+        margin-left: 0.5em;
+        vertical-align: middle;
+      }
+
+      .scorecard-saving-indicator .spinner {
+        width: 18px;
+        height: 18px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: var(--white, #fff);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        flex-shrink: 0;
+      }
+
+      /* Ensure spinner is visible on submit button */
+      #save-score-btn .scorecard-saving-indicator .spinner {
+        border: 2px solid rgba(255, 255, 255, 0.4);
+        border-top-color: var(--white, #fff);
+      }
+
+      /* Overlay for modal messages */
+      .scorecard-message-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 9999;
+        animation: fadeIn 0.2s ease-out;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
         }
       }
     </style>
@@ -810,156 +1348,153 @@
                 </div>
 
                 <div class="scorecard-table-container">
-                <table class="scorecard-table">
-                  <thead>
-                    <tr>
-                      <th>Hole</th>
-                      <th>Par</th>
-                      <th>(I)</th>
-                      <th>Strokes</th>
-                      <th>Pts</th>
-                      <th>Hole</th>
-                      <th>Par</th>
-                      <th>(I)</th>
-                      <th>Strokes</th>
-                      <th>Pts</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <div class="scorecard-grid">
+                  <div class="scorecard-grid-header">
+                    <div>Hole</div>
+                    <div>Par</div>
+                    <div>(I)</div>
+                    <div>Strokes</div>
+                    <div>Pts</div>
+                    <div>Hole</div>
+                    <div>Par</div>
+                    <div>(I)</div>
+                    <div>Strokes</div>
+                    <div>Pts</div>
+                  </div>
                     <!-- Holes 1-9 (Out) -->
-                    <tr>
-                      <td class="hole-label">1</td>
-                      <td class="par-label" id="par-1">-</td>
-                      <td class="index-label" id="index-1">-</td>
-                      <td><input type="number" id="hole-1" name="hole1" min="0" max="9" maxlength="1"></td>
-                      <td><span class="points-display" id="points-1">0</span></td>
-                      <td class="hole-label">10</td>
-                      <td class="par-label" id="par-10">-</td>
-                      <td class="index-label" id="index-10">-</td>
-                      <td><input type="number" id="hole-10" name="hole10" min="1" max="9" maxlength="1"></td>
-                      <td><span class="points-display" id="points-10">0</span></td>
-                    </tr>
-                    <tr>
-                      <td class="hole-label">2</td>
-                      <td class="par-label" id="par-2">-</td>
-                      <td class="index-label" id="index-2">-</td>
-                      <td><input type="number" id="hole-2" name="hole2" min="1" max="9" maxlength="1"></td>
-                      <td><span class="points-display" id="points-2">0</span></td>
-                      <td class="hole-label">11</td>
-                      <td class="par-label" id="par-11">-</td>
-                      <td class="index-label" id="index-11">-</td>
-                      <td><input type="number" id="hole-11" name="hole11" min="1" max="9" maxlength="1"></td>
-                      <td><span class="points-display" id="points-11">0</span></td>
-                    </tr>
-                    <tr>
-                      <td class="hole-label">3</td>
-                      <td class="par-label" id="par-3">-</td>
-                      <td class="index-label" id="index-3">-</td>
-                      <td><input type="number" id="hole-3" name="hole3" min="1" max="9" maxlength="1"></td>
-                      <td><span class="points-display" id="points-3">0</span></td>
-                      <td class="hole-label">12</td>
-                      <td class="par-label" id="par-12">-</td>
-                      <td class="index-label" id="index-12">-</td>
-                      <td><input type="number" id="hole-12" name="hole12" min="1" max="9" maxlength="1"></td>
-                      <td><span class="points-display" id="points-12">0</span></td>
-                    </tr>
-                    <tr>
-                      <td class="hole-label">4</td>
-                      <td class="par-label" id="par-4">-</td>
-                      <td class="index-label" id="index-4">-</td>
-                      <td><input type="number" id="hole-4" name="hole4" min="1" max="9" maxlength="1"></td>
-                      <td><span class="points-display" id="points-4">0</span></td>
-                      <td class="hole-label">13</td>
-                      <td class="par-label" id="par-13">-</td>
-                      <td class="index-label" id="index-13">-</td>
-                      <td><input type="number" id="hole-13" name="hole13" min="1" max="9" maxlength="1"></td>
-                      <td><span class="points-display" id="points-13">0</span></td>
-                    </tr>
-                    <tr>
-                      <td class="hole-label">5</td>
-                      <td class="par-label" id="par-5">-</td>
-                      <td class="index-label" id="index-5">-</td>
-                      <td><input type="number" id="hole-5" name="hole5" min="1" max="9" maxlength="1"></td>
-                      <td><span class="points-display" id="points-5">0</span></td>
-                      <td class="hole-label">14</td>
-                      <td class="par-label" id="par-14">-</td>
-                      <td class="index-label" id="index-14">-</td>
-                      <td><input type="number" id="hole-14" name="hole14" min="1" max="9" maxlength="1"></td>
-                      <td><span class="points-display" id="points-14">0</span></td>
-                    </tr>
-                    <tr>
-                      <td class="hole-label">6</td>
-                      <td class="par-label" id="par-6">-</td>
-                      <td class="index-label" id="index-6">-</td>
-                      <td><input type="number" id="hole-6" name="hole6" min="1" max="9" maxlength="1"></td>
-                      <td><span class="points-display" id="points-6">0</span></td>
-                      <td class="hole-label">15</td>
-                      <td class="par-label" id="par-15">-</td>
-                      <td class="index-label" id="index-15">-</td>
-                      <td><input type="number" id="hole-15" name="hole15" min="1" max="9" maxlength="1"></td>
-                      <td><span class="points-display" id="points-15">0</span></td>
-                    </tr>
-                    <tr>
-                      <td class="hole-label">7</td>
-                      <td class="par-label" id="par-7">-</td>
-                      <td class="index-label" id="index-7">-</td>
-                      <td><input type="number" id="hole-7" name="hole7" min="1" max="9" maxlength="1"></td>
-                      <td><span class="points-display" id="points-7">0</span></td>
-                      <td class="hole-label">16</td>
-                      <td class="par-label" id="par-16">-</td>
-                      <td class="index-label" id="index-16">-</td>
-                      <td><input type="number" id="hole-16" name="hole16" min="1" max="9" maxlength="1"></td>
-                      <td><span class="points-display" id="points-16">0</span></td>
-                    </tr>
-                    <tr>
-                      <td class="hole-label">8</td>
-                      <td class="par-label" id="par-8">-</td>
-                      <td class="index-label" id="index-8">-</td>
-                      <td><input type="number" id="hole-8" name="hole8" min="1" max="9" maxlength="1"></td>
-                      <td><span class="points-display" id="points-8">0</span></td>
-                      <td class="hole-label">17</td>
-                      <td class="par-label" id="par-17">-</td>
-                      <td class="index-label" id="index-17">-</td>
-                      <td><input type="number" id="hole-17" name="hole17" min="1" max="9" maxlength="1"></td>
-                      <td><span class="points-display" id="points-17">0</span></td>
-                    </tr>
-                    <tr>
-                      <td class="hole-label">9</td>
-                      <td class="par-label" id="par-9">-</td>
-                      <td class="index-label" id="index-9">-</td>
-                      <td><input type="number" id="hole-9" name="hole9" min="1" max="9" maxlength="1"></td>
-                      <td><span class="points-display" id="points-9">0</span></td>
-                      <td class="hole-label">18</td>
-                      <td class="par-label" id="par-18">-</td>
-                      <td class="index-label" id="index-18">-</td>
-                      <td><input type="number" id="hole-18" name="hole18" min="1" max="9" maxlength="1"></td>
-                      <td><span class="points-display" id="points-18">0</span></td>
-                    </tr>
+                    <div class="scorecard-grid-row">
+                      <div class="hole-label">1</div>
+                      <div class="par-label" id="par-1">-</div>
+                      <div class="index-label" id="index-1">-</div>
+                      <div><input type="number" id="hole-1" name="hole1" min="0" max="9" maxlength="1"></div>
+                      <div><span class="points-display" id="points-1">0</span></div>
+                      <div class="hole-label">10</div>
+                      <div class="par-label" id="par-10">-</div>
+                      <div class="index-label" id="index-10">-</div>
+                      <div><input type="number" id="hole-10" name="hole10" min="1" max="9" maxlength="1"></div>
+                      <div><span class="points-display" id="points-10">0</span></div>
+                    </div>
+                    <div class="scorecard-grid-row">
+                      <div class="hole-label">2</div>
+                      <div class="par-label" id="par-2">-</div>
+                      <div class="index-label" id="index-2">-</div>
+                      <div><input type="number" id="hole-2" name="hole2" min="1" max="9" maxlength="1"></div>
+                      <div><span class="points-display" id="points-2">0</span></div>
+                      <div class="hole-label">11</div>
+                      <div class="par-label" id="par-11">-</div>
+                      <div class="index-label" id="index-11">-</div>
+                      <div><input type="number" id="hole-11" name="hole11" min="1" max="9" maxlength="1"></div>
+                      <div><span class="points-display" id="points-11">0</span></div>
+                    </div>
+                    <div class="scorecard-grid-row">
+                      <div class="hole-label">3</div>
+                      <div class="par-label" id="par-3">-</div>
+                      <div class="index-label" id="index-3">-</div>
+                      <div><input type="number" id="hole-3" name="hole3" min="1" max="9" maxlength="1"></div>
+                      <div><span class="points-display" id="points-3">0</span></div>
+                      <div class="hole-label">12</div>
+                      <div class="par-label" id="par-12">-</div>
+                      <div class="index-label" id="index-12">-</div>
+                      <div><input type="number" id="hole-12" name="hole12" min="1" max="9" maxlength="1"></div>
+                      <div><span class="points-display" id="points-12">0</span></div>
+                    </div>
+                    <div class="scorecard-grid-row">
+                      <div class="hole-label">4</div>
+                      <div class="par-label" id="par-4">-</div>
+                      <div class="index-label" id="index-4">-</div>
+                      <div><input type="number" id="hole-4" name="hole4" min="1" max="9" maxlength="1"></div>
+                      <div><span class="points-display" id="points-4">0</span></div>
+                      <div class="hole-label">13</div>
+                      <div class="par-label" id="par-13">-</div>
+                      <div class="index-label" id="index-13">-</div>
+                      <div><input type="number" id="hole-13" name="hole13" min="1" max="9" maxlength="1"></div>
+                      <div><span class="points-display" id="points-13">0</span></div>
+                    </div>
+                    <div class="scorecard-grid-row">
+                      <div class="hole-label">5</div>
+                      <div class="par-label" id="par-5">-</div>
+                      <div class="index-label" id="index-5">-</div>
+                      <div><input type="number" id="hole-5" name="hole5" min="1" max="9" maxlength="1"></div>
+                      <div><span class="points-display" id="points-5">0</span></div>
+                      <div class="hole-label">14</div>
+                      <div class="par-label" id="par-14">-</div>
+                      <div class="index-label" id="index-14">-</div>
+                      <div><input type="number" id="hole-14" name="hole14" min="1" max="9" maxlength="1"></div>
+                      <div><span class="points-display" id="points-14">0</span></div>
+                    </div>
+                    <div class="scorecard-grid-row">
+                      <div class="hole-label">6</div>
+                      <div class="par-label" id="par-6">-</div>
+                      <div class="index-label" id="index-6">-</div>
+                      <div><input type="number" id="hole-6" name="hole6" min="1" max="9" maxlength="1"></div>
+                      <div><span class="points-display" id="points-6">0</span></div>
+                      <div class="hole-label">15</div>
+                      <div class="par-label" id="par-15">-</div>
+                      <div class="index-label" id="index-15">-</div>
+                      <div><input type="number" id="hole-15" name="hole15" min="1" max="9" maxlength="1"></div>
+                      <div><span class="points-display" id="points-15">0</span></div>
+                    </div>
+                    <div class="scorecard-grid-row">
+                      <div class="hole-label">7</div>
+                      <div class="par-label" id="par-7">-</div>
+                      <div class="index-label" id="index-7">-</div>
+                      <div><input type="number" id="hole-7" name="hole7" min="1" max="9" maxlength="1"></div>
+                      <div><span class="points-display" id="points-7">0</span></div>
+                      <div class="hole-label">16</div>
+                      <div class="par-label" id="par-16">-</div>
+                      <div class="index-label" id="index-16">-</div>
+                      <div><input type="number" id="hole-16" name="hole16" min="1" max="9" maxlength="1"></div>
+                      <div><span class="points-display" id="points-16">0</span></div>
+                    </div>
+                    <div class="scorecard-grid-row">
+                      <div class="hole-label">8</div>
+                      <div class="par-label" id="par-8">-</div>
+                      <div class="index-label" id="index-8">-</div>
+                      <div><input type="number" id="hole-8" name="hole8" min="1" max="9" maxlength="1"></div>
+                      <div><span class="points-display" id="points-8">0</span></div>
+                      <div class="hole-label">17</div>
+                      <div class="par-label" id="par-17">-</div>
+                      <div class="index-label" id="index-17">-</div>
+                      <div><input type="number" id="hole-17" name="hole17" min="1" max="9" maxlength="1"></div>
+                      <div><span class="points-display" id="points-17">0</span></div>
+                    </div>
+                    <div class="scorecard-grid-row">
+                      <div class="hole-label">9</div>
+                      <div class="par-label" id="par-9">-</div>
+                      <div class="index-label" id="index-9">-</div>
+                      <div><input type="number" id="hole-9" name="hole9" min="1" max="9" maxlength="1"></div>
+                      <div><span class="points-display" id="points-9">0</span></div>
+                      <div class="hole-label">18</div>
+                      <div class="par-label" id="par-18">-</div>
+                      <div class="index-label" id="index-18">-</div>
+                      <div><input type="number" id="hole-18" name="hole18" min="1" max="9" maxlength="1"></div>
+                      <div><span class="points-display" id="points-18">0</span></div>
+                    </div>
                     <!-- Totals Row -->
-                    <tr style="background: var(--lighter, #F3F3F3); font-weight: 600;">
-                      <td style="text-align: right; background: var(--lighter, #F3F3F3);"></td>
-                      <td id="out-par" style="background: var(--lighter, #F3F3F3);">0</td>
-                      <td style="background: var(--lighter, #F3F3F3);"></td>
-                      <td id="out-score" style="background: var(--lighter, #F3F3F3);">0</td>
-                      <td id="out-points" style="background: var(--lighter, #F3F3F3); color: var(--color, #D73A42);">0</td>
-                      <td style="text-align: right; background: var(--lighter, #F3F3F3);"></td>
-                      <td id="in-par" style="background: var(--lighter, #F3F3F3);">0</td>
-                      <td style="background: var(--lighter, #F3F3F3);"></td>
-                      <td id="in-score" style="background: var(--lighter, #F3F3F3);">0</td>
-                      <td id="in-points" style="background: var(--lighter, #F3F3F3); color: var(--color, #D73A42);">0</td>
-                    </tr>
-                    <tr style="background: var(--dark, #17181E); color: var(--white, #fff); font-weight: 600; font-size: 1.1em;">
-                      <td colspan="6" style="text-align: right;">Total:</td>
-                      <td id="total-par">Par 0</td>
-                      <td></td>
-                      <td id="total-score">0</td>
-                      <td id="total-points">0</td>
-                    </tr>
-                  </tbody>
-                </table>
+                    <div class="scorecard-grid-row" style="background: var(--lighter, #F3F3F3); font-weight: 600;">
+                      <div style="text-align: right; background: var(--lighter, #F3F3F3);"></div>
+                      <div id="out-par" style="background: var(--lighter, #F3F3F3); border-right: none;">0</div>
+                      <div style="background: var(--lighter, #F3F3F3); border-left: none;"></div>
+                      <div id="out-score" style="background: var(--lighter, #F3F3F3);">0</div>
+                      <div id="out-points" style="background: var(--lighter, #F3F3F3); color: #2E7D32;">0</div>
+                      <div style="text-align: right; background: var(--lighter, #F3F3F3);"></div>
+                      <div id="in-par" style="background: var(--lighter, #F3F3F3); border-right: none;">0</div>
+                      <div style="background: var(--lighter, #F3F3F3); border-left: none;"></div>
+                      <div id="in-score" style="background: var(--lighter, #F3F3F3);">0</div>
+                      <div id="in-points" style="background: var(--lighter, #F3F3F3); color: #2E7D32;">0</div>
+                    </div>
+                    <div class="scorecard-grid-row" style="background: var(--dark, #17181E); color: var(--white, #fff); font-weight: 600; font-size: 1.1em;">
+                      <div style="grid-column: 1 / 6;"></div>
+                      <div style="text-align: right;">Par</div>
+                      <div id="total-par" style="text-align: right;">0</div>
+                      <div></div>
+                      <div id="total-score">0</div>
+                      <div id="total-points">0</div>
+                    </div>
+                </div>
                 </div>
                 <div style="display: flex; justify-content: center; gap: 1em; margin-top: 1.5em; flex-wrap: wrap; align-items: baseline;">
-                  <button type="button" id="save-score-btn" style="margin: 0; background: var(--color, #D73A42); color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.95rem; font-weight: 600; line-height: 2.2em; height: 2.2em; padding: 0 1.2em; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; white-space: nowrap; vertical-align: baseline;">Submit Score</button>
+                  <button type="button" id="save-score-btn" style="margin: 0; background: #2E7D32; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.95rem; font-weight: 600; line-height: 2.2em; height: 2.2em; padding: 0 1.2em; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; white-space: nowrap; vertical-align: baseline;">Submit Score</button>
                 </div>
               </form>
             </div>

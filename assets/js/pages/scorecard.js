@@ -368,7 +368,7 @@ const ScorecardPage = {
     
     if (outParEl) outParEl.textContent = OUTtotPar || '0';
     if (inParEl) inParEl.textContent = INtotPar || '0';
-    if (totalParEl) totalParEl.textContent = 'Par ' + (totPar || '0');
+    if (totalParEl) totalParEl.textContent = totPar || '0';
   },
 
   setupEventListeners: function() {
@@ -599,7 +599,7 @@ const ScorecardPage = {
     document.getElementById('in-par').textContent = INtotPar || '0';
     document.getElementById('total-score').textContent = totScore || '0';
     document.getElementById('total-points').textContent = totPoints || '0';
-    document.getElementById('total-par').textContent = 'Par ' + (totPar || '0');
+    document.getElementById('total-par').textContent = totPar || '0';
   },
 
   resetAllPoints: function() {
@@ -616,7 +616,7 @@ const ScorecardPage = {
     document.getElementById('in-par').textContent = '0';
     document.getElementById('total-score').textContent = '0';
     document.getElementById('total-points').textContent = '0';
-    document.getElementById('total-par').textContent = 'Par 0';
+    document.getElementById('total-par').textContent = '0';
   },
 
   clearInputs: function() {
@@ -634,15 +634,121 @@ const ScorecardPage = {
     return name.toLowerCase().replace(/\s+/g, '');
   },
 
+  // Show subtle loading message (non-blocking, auto-dismisses)
+  showLoadingMessage: function(message) {
+    // Remove any existing loading message
+    const existing = document.querySelector('.scorecard-loading-message');
+    if (existing) {
+      existing.remove();
+    }
+
+    // Find the scorecard header to position message below name field
+    const header = document.querySelector('.scorecard-header');
+    if (!header) {
+      // Fallback to body if header not found
+      console.warn('scorecard-header not found, using body');
+      return;
+    }
+
+    const loadingMsg = document.createElement('div');
+    loadingMsg.className = 'scorecard-loading-message';
+    loadingMsg.innerHTML = `
+      <div class="spinner"></div>
+      <span>${message}</span>
+    `;
+    header.appendChild(loadingMsg);
+
+    // Auto-dismiss after 3 seconds
+    setTimeout(() => {
+      loadingMsg.classList.add('fade-out');
+      setTimeout(() => {
+        if (loadingMsg.parentNode) {
+          loadingMsg.remove();
+        }
+      }, 300);
+    }, 3000);
+
+    return loadingMsg;
+  },
+
+  // Hide loading message
+  hideLoadingMessage: function() {
+    const loadingMsg = document.querySelector('.scorecard-loading-message');
+    if (loadingMsg) {
+      loadingMsg.classList.add('fade-out');
+      setTimeout(() => {
+        if (loadingMsg.parentNode) {
+          loadingMsg.remove();
+        }
+      }, 300);
+    }
+  },
+
+  // Show user-friendly message (blocking, requires acknowledgment)
+  showMessage: function(message, isError = false) {
+    // Remove any existing message
+    const existing = document.querySelector('.scorecard-message-overlay');
+    if (existing) {
+      existing.remove();
+    }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'scorecard-message-overlay';
+    
+    const messageBox = document.createElement('div');
+    messageBox.className = 'scorecard-message';
+    if (isError) {
+      messageBox.style.background = '#b82e35';
+    }
+    
+    messageBox.innerHTML = `
+      <div>${message}</div>
+      <button type="button" class="scorecard-message-close">OK</button>
+    `;
+    
+    overlay.appendChild(messageBox);
+    document.body.appendChild(overlay);
+
+    // Close on button click
+    const closeBtn = messageBox.querySelector('.scorecard-message-close');
+    closeBtn.addEventListener('click', () => {
+      overlay.remove();
+    });
+
+    // Close on overlay click (outside message box)
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        overlay.remove();
+      }
+    });
+
+    // Close on Escape key
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        overlay.remove();
+        document.removeEventListener('keydown', handleEscape);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+
+    // Focus the button for accessibility
+    closeBtn.focus();
+  },
+
   // Check for existing score when course or name changes
   checkForExistingScore: function() {
     const playerName = document.getElementById('player-name')?.value.trim();
-    const course = this.currentCourse;
+    const courseSelect = document.getElementById('course-select');
+    // Use the actual select value, not this.currentCourse which might be out of sync
+    const course = courseSelect ? courseSelect.value : this.currentCourse;
     
     // Only check if both course and name are provided
     if (!playerName || !course) {
       return;
     }
+    
+    // Show loading message
+    this.showLoadingMessage('Checking for existing score...');
     
     // Get current date
     const date = new Date().toISOString().split('T')[0];
@@ -654,12 +760,14 @@ const ScorecardPage = {
       date: date
     })
       .then(result => {
+        this.hideLoadingMessage();
         if (result.exists && result.score) {
           // Load the existing score into the form
           this.loadScoreIntoForm(result.score);
         }
       })
       .catch(error => {
+        this.hideLoadingMessage();
         // Silently fail - API might not be configured
         if (!error.message.includes('API URL not configured')) {
           console.error('Error checking for existing score:', error);
@@ -674,22 +782,22 @@ const ScorecardPage = {
     const course = this.currentCourse;
     
     if (!playerName) {
-      alert('Please enter your name');
+      this.showMessage('Please enter your name', false);
       return;
     }
     
     if (!course) {
-      alert('Please select a course');
+      this.showMessage('Please select a course', false);
       return;
     }
     
     if (handicap === 0) {
-      alert('Please enter your handicap');
+      this.showMessage('Please enter your handicap', false);
       return;
     }
     
     if (!this.pars || !this.indexes) {
-      alert('Please select a course');
+      this.showMessage('Please select a course', false);
       return;
     }
     
@@ -727,7 +835,7 @@ const ScorecardPage = {
     }
     
     if (!hasScores) {
-      alert('Please enter at least one hole score');
+      this.showMessage('Please enter at least one hole score', false);
       return;
     }
     
@@ -794,45 +902,61 @@ const ScorecardPage = {
       back3Points: BACK3totPts
     };
     
-    // Show loading state
+    // Show loading state with spinner
     const saveBtn = document.getElementById('save-score-btn');
+    const originalBtnText = saveBtn ? saveBtn.innerHTML : 'Submit Score';
+    
     if (saveBtn) {
       saveBtn.disabled = true;
-      saveBtn.textContent = 'Saving...';
+      saveBtn.innerHTML = 'Saving<span class="scorecard-saving-indicator"><span class="spinner"></span></span>';
     }
     
     ApiClient.post('saveScore', scoreData)
       .then(result => {
-        alert('Score saved successfully!');
+        // Restore button
         if (saveBtn) {
           saveBtn.disabled = false;
-          saveBtn.textContent = 'Submit Score';
+          saveBtn.innerHTML = originalBtnText;
         }
+        
+        // Show user-friendly success message with points score
+        const pointsMessage = `Your points score of ${totalPoints} was successfully recorded`;
+        this.showMessage(pointsMessage, false);
       })
       .catch(error => {
-        alert('Error saving score: ' + error.message);
+        // Restore button
         if (saveBtn) {
           saveBtn.disabled = false;
-          saveBtn.textContent = 'Submit Score';
+          saveBtn.innerHTML = originalBtnText;
         }
+        
+        // Show user-friendly error message
+        let errorMessage = 'Unable to save your score.';
+        if (error.message) {
+          // Make error messages more user-friendly
+          if (error.message.includes('404')) {
+            errorMessage = 'Unable to connect to the server. Please check your connection and try again.';
+          } else if (error.message.includes('Network') || error.message.includes('CORS')) {
+            errorMessage = 'Network error. Please check your connection and try again.';
+          } else {
+            errorMessage = `Unable to save your score: ${error.message}`;
+          }
+        }
+        this.showMessage(errorMessage, true);
       });
   },
 
 
   loadScoreIntoForm: function(score) {
-    // Don't overwrite player name - keep what user entered
+    // When loading an existing score, only update handicap and scores
+    // Do NOT change Course or Player - they were already entered by the user
     
     // Set handicap
     const handicapInput = document.getElementById('handicap');
     if (handicapInput) handicapInput.value = score.handicap;
     
-    // Set course
-    this.currentCourse = score.course;
-    const courseSelect = document.getElementById('course-select');
-    if (courseSelect) {
-      courseSelect.value = score.course;
-      this.updateCourseData();
-    }
+    // Do NOT set course - keep the user's current selection
+    // The course was already selected when checking for existing score
     
     // Set hole scores
     for (let i = 0; i < 18; i++) {
