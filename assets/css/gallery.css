@@ -1,5 +1,15 @@
 /* Gallery page: album list, album view, lightbox */
 
+/* Override theme: gallery images use loading="lazy" but are injected after ImageLoader.init().
+   Keep them visible; ImageLoader re-init after render adds load listeners for fade-in. */
+#gallery-app img[loading] {
+  opacity: 1;
+}
+#gallery-app img.is-loaded {
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
 .gallery-albums {
   margin: 2em 0;
 }
@@ -112,16 +122,23 @@
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background: rgba(0, 0, 0, 0.9);
+  background: rgba(0, 0, 0, 0.95);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 3rem;
+  padding: 0.5rem;
+}
+
+@media (min-width: 37.5em) {
+  .gallery-lightbox {
+    padding: 1rem;
+  }
 }
 
 .gallery-lightbox__inner {
-  max-width: 100%;
-  max-height: 100%;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -129,7 +146,7 @@
 
 .gallery-lightbox__inner img {
   max-width: 100%;
-  max-height: calc(100vh - 8rem);
+  max-height: 100%;
   width: auto;
   height: auto;
   object-fit: contain;
@@ -162,28 +179,54 @@
 }
 
 .gallery-lightbox__close {
-  top: 1rem;
-  right: 1rem;
+  top: 0.5rem;
+  right: 0.5rem;
   font-size: 2.5rem;
 }
 
+@media (min-width: 37.5em) {
+  .gallery-lightbox__close {
+    top: 1rem;
+    right: 1rem;
+  }
+}
+
 .gallery-lightbox__prev {
-  left: 1rem;
+  left: 0.5rem;
   top: 50%;
   transform: translateY(-50%);
 }
 
+@media (min-width: 37.5em) {
+  .gallery-lightbox__prev {
+    left: 1rem;
+  }
+}
+
 .gallery-lightbox__next {
-  right: 1rem;
+  right: 0.5rem;
   top: 50%;
   transform: translateY(-50%);
+}
+
+@media (min-width: 37.5em) {
+  .gallery-lightbox__next {
+    right: 1rem;
+  }
 }
 
 .gallery-lightbox__counter {
   position: absolute;
-  bottom: 1.5rem;
+  bottom: 0.75rem;
   left: 50%;
   transform: translateX(-50%);
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.9rem;
+}
+
+@media (min-width: 37.5em) {
+  .gallery-lightbox__counter {
+    bottom: 1rem;
+    font-size: 0.95rem;
+  }
 }

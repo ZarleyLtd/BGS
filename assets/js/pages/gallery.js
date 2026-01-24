@@ -75,6 +75,7 @@ const GalleryPage = {
     html += "</div></div>";
 
     this.container.innerHTML = html;
+    this.initImageLoader();
   },
 
   renderAlbumView: function(album) {
@@ -98,7 +99,14 @@ const GalleryPage = {
     html += "</div></div></div>";
 
     this.container.innerHTML = html;
+    this.initImageLoader();
     this.attachLightbox(album, { albumImageUrl: albumImageUrl });
+  },
+
+  initImageLoader: function() {
+    if (typeof ImageLoader !== "undefined" && typeof ImageLoader.init === "function") {
+      ImageLoader.init();
+    }
   },
 
   attachLightbox: function(album, opts) {
@@ -159,17 +167,47 @@ const GalleryPage = {
         if (e.key === "ArrowRight") { e.preventDefault(); currentIndex = update(currentIndex + 1); }
       }
 
+      function goPrev() {
+        currentIndex = update(currentIndex - 1);
+      }
+      function goNext() {
+        currentIndex = update(currentIndex + 1);
+      }
+
       overlay.addEventListener("click", function(e) {
         if (e.target === overlay) close();
-        if (e.target === prevBtn) { e.preventDefault(); currentIndex = update(currentIndex - 1); }
-        if (e.target === nextBtn) { e.preventDefault(); currentIndex = update(currentIndex + 1); }
+        if (e.target === prevBtn) { e.preventDefault(); goPrev(); }
+        if (e.target === nextBtn) { e.preventDefault(); goNext(); }
       });
-      prevBtn.addEventListener("click", function(e) { e.stopPropagation(); });
-      nextBtn.addEventListener("click", function(e) { e.stopPropagation(); });
+      prevBtn.addEventListener("click", function(e) {
+        e.stopPropagation();
+        e.preventDefault();
+        goPrev();
+      });
+      nextBtn.addEventListener("click", function(e) {
+        e.stopPropagation();
+        e.preventDefault();
+        goNext();
+      });
       closeBtn.addEventListener("click", function(e) {
         e.stopPropagation();
         close();
       });
+
+      (function setupSwipe() {
+        var startX = 0;
+        var minSwipe = 50;
+        overlay.addEventListener("touchstart", function(e) {
+          startX = e.touches[0].clientX;
+        }, { passive: true });
+        overlay.addEventListener("touchend", function(e) {
+          if (!e.changedTouches.length) return;
+          var dx = e.changedTouches[0].clientX - startX;
+          if (dx < -minSwipe) goNext();
+          else if (dx > minSwipe) goPrev();
+        }, { passive: true });
+      })();
+
       document.addEventListener("keydown", onKey);
       document.documentElement.classList.add("no-scroll");
       document.body.classList.add("no-scroll");
