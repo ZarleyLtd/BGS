@@ -181,10 +181,12 @@ const ScorecardPage = {
     // Set up event listeners
     this.setupEventListeners();
 
-    // Focus Name field when page is first presented
+    // Focus Name field when page is first presented (desktop only)
+    // On touch devices, skip auto-focus so the mobile keyboard doesn't open until the user taps the field
     requestAnimationFrame(() => {
       const playerInput = document.getElementById('player-name');
-      if (playerInput) playerInput.focus();
+      const isTouchDevice = 'ontouchstart' in window || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
+      if (playerInput && !isTouchDevice) playerInput.focus();
     });
   },
 
