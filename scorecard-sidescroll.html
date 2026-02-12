@@ -268,32 +268,6 @@
         font-size: 0.95rem;
       }
 
-      @media (max-width: 480px) {
-        .hole-card {
-          width: 3.8em;
-          min-width: 3.8em;
-          padding: 0.12em 0.2em;
-        }
-
-        .hole-card .hole-info {
-          font-size: 0.7rem;
-        }
-
-        .hole-card .hole-info .hole-index-wrap {
-          font-size: 0.55rem;
-        }
-
-        .hole-card input[type="number"] {
-          width: 1.6em;
-          margin: 0.3em auto 0 auto;
-          font-size: 1.05rem;
-        }
-
-        .hole-card .hole-pts {
-          font-size: 0.9rem;
-        }
-      }
-
       /* Summary section */
       .sidescroll-summary {
         margin-top: 1.5em;
@@ -307,6 +281,33 @@
         display: flex;
         flex-direction: column;
         gap: 0.5em;
+        align-items: center;
+      }
+
+      .summary-inline {
+        text-align: center;
+        font-size: 75%;
+        line-height: 1.5;
+      }
+
+      .summary-inline .summary-label {
+        font-weight: 600;
+        color: var(--gray, #57585a);
+      }
+
+      .summary-inline .summary-value {
+        font-size: 1.2em;
+        font-weight: 700;
+        color: var(--dark, #17181E);
+      }
+
+      .summary-inline .summary-value.points {
+        color: #2E7D32;
+      }
+
+      .summary-spacer {
+        display: inline-block;
+        width: 2em;
       }
 
       .summary-row {
@@ -660,15 +661,10 @@
                 <!-- Summary section - Front 9, Back 9, 18 hole -->
                 <div class="sidescroll-summary">
                   <div class="summary-rows">
-                    <div class="summary-row">
-                      <span class="summary-label">Front 9</span>
-                      <span class="summary-strokes"><span class="summary-value" id="out-score">0</span> Strokes</span>
-                      <span class="summary-points"><span class="summary-value points" id="out-points">0</span> Points</span>
-                    </div>
-                    <div class="summary-row">
-                      <span class="summary-label">Back 9</span>
-                      <span class="summary-strokes"><span class="summary-value" id="in-score">0</span> Strokes</span>
-                      <span class="summary-points"><span class="summary-value points" id="in-points">0</span> Points</span>
+                    <div class="summary-inline">
+                      <span class="summary-label">Front:  </span> <span class="summary-value" id="out-score">0</span> for <span class="summary-value points" id="out-points">0</span>
+                      <span class="summary-spacer"></span>
+                      <span class="summary-label">Back:</span> <span class="summary-value" id="in-score">0</span> for <span class="summary-value points" id="in-points">0</span>
                     </div>
                     <div class="summary-row summary-row--total">
                       <span class="summary-label">18 Holes</span>
