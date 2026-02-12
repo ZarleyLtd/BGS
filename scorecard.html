@@ -188,26 +188,37 @@
         display: contents;
       }
       
-      /* Header cells */
+      /* Header cells - darker background, smaller font */
       .scorecard-grid-header > * {
-        background: var(--dark, #17181E);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #0d0e12;
         color: var(--white, #fff);
         padding: 0.5em 0.5em;
         text-align: center;
         font-weight: 600;
-        font-size: 0.9rem;
+        font-size: 0.78rem;
         border: 1px solid var(--light, #CACBCF);
         box-sizing: border-box;
+      }
+      /* Par header columns - smaller font */
+      .scorecard-grid-header > *:nth-child(2),
+      .scorecard-grid-header > *:nth-child(7) {
+        font-size: 0.65rem;
       }
       
       /* Visual divider on column 6 (first column of back 9) */
       .scorecard-grid-header > *:nth-child(6),
       .scorecard-grid-row > *:nth-child(6) {
-        border-left: 2px solid var(--dark, #17181E);
+        border-left: 2px solid #0d0e12;
       }
       
-      /* Body row cells */
+      /* Body row cells - flex to align all content (numbers, inputs, labels) on same horizontal centre */
       .scorecard-grid-row > * {
+        display: flex;
+        align-items: center;
+        justify-content: center;
         padding: 0.05em 0.5em;
         text-align: center;
         border: 1px solid var(--light, #CACBCF);
@@ -246,19 +257,20 @@
       }
       
       .scorecard-grid .hole-label {
-        font-weight: 700;
-        font-size: 1.1rem;
-      }
-      
-      .scorecard-grid .par-label,
-      .scorecard-grid .index-label {
         color: var(--gray, #57585a);
         font-size: 1rem;
         font-weight: 600;
       }
       
+      .scorecard-grid .par-label {
+        font-weight: 700;
+        font-size: 1.1rem;
+      }
+      
       .scorecard-grid .index-label {
-        font-size: 0.9rem;
+        color: var(--gray, #57585a);
+        font-size: 0.7rem;
+        font-weight: 600;
       }
       
       .scorecard-grid .points-display {
@@ -280,7 +292,11 @@
         }
         .scorecard-grid-header > * {
           padding: 0.35em 0.2em;
-          font-size: 0.85rem;
+          font-size: 0.72rem;
+        }
+        .scorecard-grid-header > *:nth-child(2),
+        .scorecard-grid-header > *:nth-child(7) {
+          font-size: 0.6rem;
         }
         .scorecard-grid-row > * {
           padding: 0.04em 0.2em;
@@ -291,14 +307,13 @@
           font-size: 1rem;
         }
         .scorecard-grid .hole-label {
-          font-size: 1.15rem;
-        }
-        .scorecard-grid .par-label,
-        .scorecard-grid .index-label {
           font-size: 1.05rem;
         }
+        .scorecard-grid .par-label {
+          font-size: 1.15rem;
+        }
         .scorecard-grid .index-label {
-          font-size: 0.95rem;
+          font-size: 0.75rem;
         }
         .scorecard-grid .points-display {
           min-width: 1.4em;
@@ -316,7 +331,11 @@
         }
         .scorecard-grid-header > * {
           padding: 0.3em 0.1em;
-          font-size: 0.8rem;
+          font-size: 0.68rem;
+        }
+        .scorecard-grid-header > *:nth-child(2),
+        .scorecard-grid-header > *:nth-child(7) {
+          font-size: 0.56rem;
         }
         .scorecard-grid-row > * {
           padding: 0.03em 0.1em;
@@ -327,14 +346,13 @@
           font-size: 0.95rem;
         }
         .scorecard-grid .hole-label {
-          font-size: 1.1rem;
-        }
-        .scorecard-grid .par-label,
-        .scorecard-grid .index-label {
           font-size: 1rem;
         }
+        .scorecard-grid .par-label {
+          font-size: 1.1rem;
+        }
         .scorecard-grid .index-label {
-          font-size: 0.9rem;
+          font-size: 0.68rem;
         }
         .scorecard-grid .points-display {
           min-width: 1.2em;
@@ -352,7 +370,11 @@
         }
         .scorecard-grid-header > * {
           padding: 0.25em 0.08em;
-          font-size: 0.75rem;
+          font-size: 0.64rem;
+        }
+        .scorecard-grid-header > *:nth-child(2),
+        .scorecard-grid-header > *:nth-child(7) {
+          font-size: 0.52rem;
         }
         .scorecard-grid-row > * {
           padding: 0.025em 0.08em;
@@ -363,14 +385,13 @@
           font-size: 0.9rem;
         }
         .scorecard-grid .hole-label {
-          font-size: 1.05rem;
-        }
-        .scorecard-grid .par-label,
-        .scorecard-grid .index-label {
           font-size: 0.95rem;
         }
+        .scorecard-grid .par-label {
+          font-size: 1.05rem;
+        }
         .scorecard-grid .index-label {
-          font-size: 0.85rem;
+          font-size: 0.64rem;
         }
         .scorecard-grid .points-display {
           min-width: 1em;
@@ -981,64 +1002,71 @@
       }
 
       .hole-label {
-        font-weight: 700;
-        font-size: 1.1rem;
-      }
-
-      @media (max-width: 768px) {
-        .hole-label {
-          font-size: 1.15rem;
-        }
-      }
-
-      @media (max-width: 480px) {
-        .hole-label {
-          font-size: 1.1rem;
-        }
-      }
-
-      @media (max-width: 360px) {
-        .hole-label {
-          font-size: 1.05rem;
-        }
-      }
-
-      .par-label,
-      .index-label {
         color: var(--gray, #57585a);
         font-size: 1rem;
         font-weight: 600;
       }
 
-      .index-label {
-        font-size: 0.9rem;
+      @media (max-width: 768px) {
+        .hole-label {
+          font-size: 1.05rem;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .hole-label {
+          font-size: 1rem;
+        }
+      }
+
+      @media (max-width: 360px) {
+        .hole-label {
+          font-size: 0.95rem;
+        }
+      }
+
+      .par-label {
+        font-weight: 700;
+        font-size: 1.1rem;
       }
 
       @media (max-width: 768px) {
-        .par-label,
-        .index-label {
+        .par-label {
+          font-size: 1.15rem;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .par-label {
+          font-size: 1.1rem;
+        }
+      }
+
+      @media (max-width: 360px) {
+        .par-label {
           font-size: 1.05rem;
         }
+      }
+
+      .index-label {
+        color: var(--gray, #57585a);
+        font-size: 0.9rem;
+        font-weight: 600;
+      }
+
+      @media (max-width: 768px) {
         .index-label {
           font-size: 0.95rem;
         }
       }
 
       @media (max-width: 480px) {
-        .par-label,
-        .index-label {
-          font-size: 1rem;
-        }
         .index-label {
           font-size: 0.9rem;
         }
       }
 
       @media (max-width: 360px) {
-        .par-label,
-        .index-label {
-          font-size: 0.95rem;
-        }
         .index-label {
           font-size: 0.85rem;
         }
@@ -1048,6 +1076,23 @@
       #total-par {
         white-space: nowrap;
         text-align: right !important;
+      }
+
+      /* Remove vertical bar separators on bottom line between Par and par total, and to the right of par total */
+      .scorecard-grid .scorecard-grid-row:last-child > *:nth-child(2) {
+        border-right: none;
+      }
+      .scorecard-grid .scorecard-grid-row:last-child > *:nth-child(3) {
+        border-left: none;
+        border-right: none;
+      }
+      /* Remove thin bar between par total and empty (I) cell */
+      .scorecard-grid .scorecard-grid-row:last-child > *:nth-child(4) {
+        border-left: none;
+      }
+      /* Remove the column-6 divider (Par/(I) separator) from the bottom row */
+      .scorecard-grid .scorecard-grid-row:last-child > *:nth-child(6) {
+        border-left: none;
       }
 
       /* Total rows styling adjustments for mobile */
