@@ -78,6 +78,33 @@
         order: -1;
       }
 
+      .hero-title-row {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 0.2em;
+      }
+
+      .hero-title-row .scorecard-view-toggle {
+        color: inherit;
+      }
+
+      .scorecard-view-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.5em;
+        color: var(--color, #D73A42);
+        text-decoration: none;
+        border-radius: 4px;
+        transition: background 0.2s, color 0.2s;
+      }
+
+      .scorecard-view-toggle:hover {
+        background: rgba(215, 58, 66, 0.1);
+        color: var(--color, #D73A42);
+      }
+
       @media (max-width: 600px) {
         .scorecard-header {
           gap: 0.4em;
@@ -1369,8 +1396,11 @@
             </div>
           </figure>
           <header class="hero__content hero__content--overlay">
-            <div class="wrapper">
+            <div class="wrapper hero-title-row">
               <h1>Scorecard</h1>
+              <a href="scorecard-sidescroll.html" class="scorecard-view-toggle" title="Side-scroll scorecard view" aria-label="Open side-scroll scorecard view">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H8m0 0l4-4m-4 4l4 4"/><path d="M4 12h12m0 0l-4-4m4 4l-4 4"/></svg>
+              </a>
             </div>
           </header>
         </div>

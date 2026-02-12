@@ -62,10 +62,47 @@
     });
   }
 
+  function setupTransferToStandardView() {
+    const link = document.querySelector('.scorecard-view-toggle[href="scorecard.html"]');
+    if (!link) return;
+
+    link.addEventListener('click', function(e) {
+      e.preventDefault();
+
+      var courseSelect = document.getElementById('course-select');
+      var playerInput = document.getElementById('player-name');
+      var handicapInput = document.getElementById('handicap');
+      var holes = [];
+      for (var i = 1; i <= 18; i++) {
+        var input = document.getElementById('hole-' + i);
+        holes.push(input ? (input.value || '') : '');
+      }
+
+      var draft = {
+        course: courseSelect ? courseSelect.value || '' : '',
+        playerName: playerInput ? (playerInput.value || '').trim() : '',
+        handicap: handicapInput ? (handicapInput.value || '').trim() : '',
+        holes: holes
+      };
+
+      try {
+        sessionStorage.setItem('bgs_scorecard_draft', JSON.stringify(draft));
+      } catch (err) {
+        // Ignore storage errors (e.g. private mode)
+      }
+      window.location.href = 'scorecard.html';
+    });
+  }
+
+  function init() {
+    setupSidescrollListeners();
+    setupTransferToStandardView();
+  }
+
   // Run after scorecard.js has initialized
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', setupSidescrollListeners);
+    document.addEventListener('DOMContentLoaded', init);
   } else {
-    setupSidescrollListeners();
+    init();
   }
 })();

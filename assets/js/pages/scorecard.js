@@ -188,6 +188,9 @@ const ScorecardPage = {
       const isTouchDevice = 'ontouchstart' in window || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
       if (playerInput && !isTouchDevice) playerInput.focus();
     });
+
+    // If user came from sidescroll with partly filled data, restore it (no submit)
+    this.applyDraftFromSidescroll();
   },
 
   /**
@@ -478,6 +481,32 @@ const ScorecardPage = {
     if (saveBtn) {
       saveBtn.addEventListener('click', () => {
         this.saveScore();
+      });
+    }
+
+    // Transfer to side-scroll view: save draft and navigate (only on standard page)
+    const sidescrollLink = document.querySelector('.scorecard-view-toggle[href="scorecard-sidescroll.html"]');
+    if (sidescrollLink) {
+      sidescrollLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        const courseSelect = document.getElementById('course-select');
+        const playerInput = document.getElementById('player-name');
+        const handicapInput = document.getElementById('handicap');
+        const holes = [];
+        for (let i = 1; i <= 18; i++) {
+          const input = document.getElementById('hole-' + i);
+          holes.push(input ? (input.value || '') : '');
+        }
+        const draft = {
+          course: courseSelect ? courseSelect.value || '' : '',
+          playerName: playerInput ? (playerInput.value || '').trim() : '',
+          handicap: handicapInput ? (handicapInput.value || '').trim() : '',
+          holes: holes
+        };
+        try {
+          sessionStorage.setItem('bgs_scorecard_draft', JSON.stringify(draft));
+        } catch (err) {}
+        window.location.href = 'scorecard-sidescroll.html';
       });
     }
   },
@@ -1023,6 +1052,82 @@ const ScorecardPage = {
     
     // Scroll to top of form
     document.getElementById('scorecard-form')?.scrollIntoView({ behavior: 'smooth' });
+  },
+
+  /**
+   * If user navigated from the other scorecard view with partly filled data, restore it.
+   * Runs on both standard and side-scroll pages when bgs_scorecard_draft is in sessionStorage. Does not submit.
+   */
+  applyDraftFromSidescroll: function() {
+    let raw;
+    try {
+      raw = sessionStorage.getItem('bgs_scorecard_draft');
+    } catch (err) {
+      return;
+    }
+    if (!raw) return;
+
+    try {
+      sessionStorage.removeItem('bgs_scorecard_draft');
+    } catch (err) {
+      // continue to apply draft
+    }
+
+    let draft;
+    try {
+      draft = JSON.parse(raw);
+    } catch (err) {
+      return;
+    }
+    if (!draft || !draft.holes || draft.holes.length !== 18) return;
+
+    const courseSelect = document.getElementById('course-select');
+    if (courseSelect && draft.course) {
+      courseSelect.value = draft.course;
+      if (courseSelect.value === draft.course) {
+        this.currentCourse = draft.course;
+        this.updateCourseData();
+      }
+    }
+
+    const playerInput = document.getElementById('player-name');
+    if (playerInput && draft.playerName !== undefined) playerInput.value = draft.playerName;
+
+    const handicapInput = document.getElementById('handicap');
+    if (handicapInput && draft.handicap !== undefined) handicapInput.value = draft.handicap;
+
+    for (let i = 0; i < 18; i++) {
+      const input = document.getElementById('hole-' + (i + 1));
+      if (input) {
+        const v = draft.holes[i];
+        input.value = (v !== undefined && v !== null && v !== '') ? String(v) : '';
+      }
+    }
+
+    this.calculateScores();
+    document.getElementById('scorecard-form')?.scrollIntoView({ behavior: 'smooth' });
+
+    // Focus first blank field so user can continue typing
+    const playerEl = document.getElementById('player-name');
+    const handicapEl = document.getElementById('handicap');
+    const toFocus =
+      (playerEl && (!draft.playerName || String(draft.playerName).trim() === '')) ? playerEl :
+      (handicapEl && (!draft.handicap || String(draft.handicap).trim() === '')) ? handicapEl :
+      (function() {
+        for (let i = 0; i < 18; i++) {
+          const v = draft.holes[i];
+          if (v === undefined || v === null || String(v).trim() === '') {
+            const input = document.getElementById('hole-' + (i + 1));
+            if (input) return input;
+          }
+        }
+        return null;
+      })();
+    if (toFocus) {
+      requestAnimationFrame(function() {
+        toFocus.focus();
+      });
+    }
   },
 
 };
