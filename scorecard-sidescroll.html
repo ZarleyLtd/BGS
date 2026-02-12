@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Scorecard Side-Scroll - Bushwhackers @ the Botanic</title>
+    <title>Scorecard</title>
     <meta
       name="description"
       content="Scorecard side-scroll layout for Bushwhackers @ the Botanic Golf Society."
@@ -13,23 +13,27 @@
     <style>
       .scorecard-wrapper {
         max-width: 100%;
-        margin: 2em auto;
+        margin: 2em 0 2em 0;
         padding: 0;
+        margin-right: calc(-1 * var(--page-margin, 6vw));
       }
 
       @media (max-width: 768px) {
         .scorecard-wrapper {
           padding: 0;
-          margin: 1em auto;
+          margin: 1em 0 1em 0;
+          margin-right: calc(-1 * var(--page-margin, 6vw));
         }
       }
 
       .content__entry .entry-wrapper {
         padding-left: 0 !important;
         padding-right: 0 !important;
+        max-width: none;
       }
 
       .scorecard-header {
+        position: relative;
         margin-bottom: 1.5em;
         display: grid;
         grid-template-columns: 3fr 1fr;
@@ -40,6 +44,25 @@
       .scorecard-header .course-select-wrapper {
         grid-column: 1 / -1;
         order: -1;
+      }
+
+      @media (max-width: 600px) {
+        .scorecard-header {
+          gap: 0.4em;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .scorecard-header {
+          gap: 0.3em;
+          margin-bottom: 1em;
+        }
+      }
+
+      @media (max-width: 360px) {
+        .scorecard-header {
+          gap: 0.25em;
+        }
       }
 
       .scorecard-header label {
@@ -83,6 +106,30 @@
         margin-bottom: 0;
       }
 
+      @media (max-width: 480px) {
+        .scorecard-header input,
+        .scorecard-header select {
+          font-size: 0.95rem;
+          padding: 0.3em 0.5em;
+        }
+        .scorecard-header label {
+          font-size: 0.9rem;
+          margin-right: 0.3em;
+        }
+      }
+
+      @media (max-width: 360px) {
+        .scorecard-header input,
+        .scorecard-header select {
+          font-size: 0.9rem;
+          padding: 0.25em 0.4em;
+        }
+        .scorecard-header label {
+          font-size: 0.85rem;
+          margin-right: 0.2em;
+        }
+      }
+
       /* Side-scroll sections */
       .sidescroll-section {
         margin-bottom: 0.75em;
@@ -121,23 +168,29 @@
         overflow-y: hidden;
         -webkit-overflow-scrolling: touch;
         padding: 0.2em 0.3em;
-        background: var(--lighter, #F3F3F3);
+        background: #2E7D32;
         border-radius: 3px;
-        border: 1px solid var(--light, #CACBCF);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        scrollbar-width: thin;
+        scrollbar-color: #57585a #e8e8e8;
       }
 
       .sidescroll-track::-webkit-scrollbar {
-        height: 8px;
+        height: 3px;
       }
 
       .sidescroll-track::-webkit-scrollbar-track {
-        background: var(--lighter, #F3F3F3);
+        background: #e8e8e8;
         border-radius: 4px;
       }
 
       .sidescroll-track::-webkit-scrollbar-thumb {
-        background: var(--gray, #57585a);
+        background: #57585a;
         border-radius: 4px;
+      }
+
+      .sidescroll-track::-webkit-scrollbar-thumb:hover {
+        background: #17181E;
       }
 
       .sidescroll-holes {
@@ -150,8 +203,8 @@
 
       .hole-card {
         flex: 0 0 auto;
-        width: 4.2em;
-        min-width: 4.2em;
+        width: 5.2em;
+        min-width: 5.2em;
         background: var(--page-bg, #fff);
         border: 1px solid var(--light, #CACBCF);
         border-radius: 2px;
@@ -174,6 +227,11 @@
         line-height: 1.2;
       }
 
+      .hole-card .hole-info .hole-num {
+        color: var(--gray, #8a8b8e);
+        font-weight: 500;
+      }
+
       .hole-card .hole-info .hole-index-wrap {
         font-size: 0.6rem;
         color: var(--gray, #57585a);
@@ -182,11 +240,11 @@
 
       .hole-card input[type="number"] {
         width: 1.8em;
-        margin: 0 auto;
+        margin: 0.35em auto 0 auto;
         text-align: center;
         border: 1px solid var(--light, #CACBCF);
         padding: 0.15em 0.1em;
-        font-size: 0.9rem;
+        font-size: 1.15rem;
         font-weight: 700;
         -moz-appearance: textfield;
         -webkit-appearance: none;
@@ -227,7 +285,8 @@
 
         .hole-card input[type="number"] {
           width: 1.6em;
-          font-size: 0.85rem;
+          margin: 0.3em auto 0 auto;
+          font-size: 1.05rem;
         }
 
         .hole-card .hole-pts {
@@ -244,67 +303,50 @@
         border: 1px solid var(--light, #CACBCF);
       }
 
-      .sidescroll-summary h3 {
-        margin: 0 0 0.75em 0;
-        font-size: 1rem;
-        color: var(--gray, #57585a);
-      }
-
-      .sidescroll-summary-grid {
+      .summary-rows {
         display: flex;
-        flex-direction: row;
+        flex-direction: column;
+        gap: 0.5em;
+      }
+
+      .summary-row {
+        display: flex;
         flex-wrap: nowrap;
-        justify-content: center;
-        gap: 1em;
-        text-align: center;
+        align-items: baseline;
+        gap: 0.75em 1.5em;
+        font-size: 75%;
+        line-height: 1.5;
       }
 
-      .sidescroll-summary-grid .summary-box {
-        flex: 1;
-        min-width: 5rem;
+      .summary-row--total {
+        font-size: 1rem;
       }
 
-      @media (max-width: 480px) {
-        .sidescroll-summary {
-          overflow-x: auto;
-        }
-        .sidescroll-summary-grid {
-          min-width: min-content;
-        }
-        .sidescroll-summary-grid .summary-box {
-          min-width: 6rem;
-          flex: 0 1 auto;
-        }
-      }
-
-      .summary-box {
-        padding: 0.75em;
-        background: var(--page-bg, #fff);
-        border-radius: 3px;
-        border: 1px solid var(--light, #CACBCF);
-      }
-
-      .summary-box h4 {
-        margin: 0 0 0.35em 0;
-        font-size: 0.85rem;
-        color: var(--gray, #57585a);
+      .summary-row .summary-label {
         font-weight: 600;
+        color: var(--gray, #57585a);
+        min-width: 5.5em;
+        flex-shrink: 0;
       }
 
-      .summary-box .summary-value {
-        font-size: 1.35rem;
+      .summary-row .summary-strokes {
+        color: var(--dark, #17181E);
+        flex-shrink: 0;
+      }
+
+      .summary-row .summary-points {
+        color: var(--dark, #17181E);
+        margin-left: auto;
+      }
+
+      .summary-row .summary-value {
+        font-size: 1.2em;
         font-weight: 700;
         color: var(--dark, #17181E);
       }
 
-      .summary-box .summary-value.points {
+      .summary-row .summary-value.points {
         color: #2E7D32;
-      }
-
-      .summary-box .summary-sub {
-        font-size: 0.8rem;
-        color: var(--gray, #57585a);
-        margin-top: 0.2em;
       }
 
       /* User-friendly message system - shared with scorecard */
@@ -386,6 +428,33 @@
         animation: spin 0.8s linear infinite;
       }
 
+      .hero-title-row {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 0.2em;
+      }
+
+      .hero-title-row .scorecard-view-toggle {
+        color: inherit;
+      }
+
+      .scorecard-view-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.5em;
+        color: var(--color, #D73A42);
+        text-decoration: none;
+        border-radius: 4px;
+        transition: background 0.2s, color 0.2s;
+      }
+
+      .scorecard-view-toggle:hover {
+        background: rgba(215, 58, 66, 0.1);
+        color: var(--color, #D73A42);
+      }
+
       .sidescroll-alt-link {
         margin-bottom: 1em;
         font-size: 0.9rem;
@@ -449,17 +518,19 @@
             </div>
           </figure>
           <header class="hero__content hero__content--overlay">
-            <div class="wrapper">
-              <h1>Scorecard Side-Scroll</h1>
+            <div class="wrapper hero-title-row">
+              <h1>Scorecard</h1>
+              <a href="scorecard.html" class="scorecard-view-toggle" title="Standard Scorecard view" aria-label="Open standard scorecard view">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 15l5 5 5-5"/><path d="M7 9l5-5 5 5"/></svg>
+              </a>
             </div>
           </header>
         </div>
         <div class="entry-wrapper content__entry">
           <section class="hero hero--image">
             <div class="scorecard-wrapper">
-              <p class="sidescroll-alt-link"><a href="scorecard.html">← Standard Scorecard view</a></p>
               <form id="scorecard-form" name="scorecard">
-                <div class="scorecard-header" style="position: relative;">
+                <div class="scorecard-header">
                   <div class="course-select-wrapper">
                     <label for="course-select">Course:</label>
                     <select id="course-select" name="course">
@@ -479,12 +550,12 @@
 
                 <!-- Front 9 - Holes 1-9 horizontal scroll -->
                 <div class="sidescroll-section">
-                  <h3><span>Holes 1 – 9</span><span class="sidescroll-section-heading-totals">Strokes <span class="out-score-header">0</span> Points <span class="out-points-header">0</span></span></h3>
+                  <h3><span>Front 9</span><span class="sidescroll-section-heading-totals">Strokes <span class="out-score-header">0</span> Points <span class="out-points-header">0</span></span></h3>
                   <div class="sidescroll-track" id="front9-track" role="region" aria-label="Front nine holes">
                     <div class="sidescroll-holes">
                       <!-- Hole cards 1-9 generated below -->
                       <div class="hole-card" id="hole-card-1" data-hole="1">
-                        <div class="hole-info">#1 Par <span id="par-1">-</span> <span class="hole-index-wrap">(<span id="index-1">-</span>)</span></div>
+                        <div class="hole-info"><span class="hole-num">#1</span> Par <span id="par-1">-</span> <span class="hole-index-wrap">(<span id="index-1">-</span>)</span></div>
                         <input type="number" id="hole-1" name="hole1" min="0" max="9" maxlength="1" aria-label="Hole 1 strokes">
                         <span class="hole-pts" id="points-1">0</span>
                       </div>
@@ -494,7 +565,7 @@
                         <span class="hole-pts" id="points-2">0</span>
                       </div>
                       <div class="hole-card" id="hole-card-3" data-hole="3">
-                        <div class="hole-info">#3 Par <span id="par-3">-</span> <span class="hole-index-wrap">(<span id="index-3">-</span>)</span></div>
+                        <div class="hole-info"><span class="hole-num">#3</span> Par <span id="par-3">-</span> <span class="hole-index-wrap">(<span id="index-3">-</span>)</span></div>
                         <input type="number" id="hole-3" name="hole3" min="1" max="9" maxlength="1" aria-label="Hole 3 strokes">
                         <span class="hole-pts" id="points-3">0</span>
                       </div>
@@ -504,7 +575,7 @@
                         <span class="hole-pts" id="points-4">0</span>
                       </div>
                       <div class="hole-card" id="hole-card-5" data-hole="5">
-                        <div class="hole-info">#5 Par <span id="par-5">-</span> <span class="hole-index-wrap">(<span id="index-5">-</span>)</span></div>
+                        <div class="hole-info"><span class="hole-num">#5</span> Par <span id="par-5">-</span> <span class="hole-index-wrap">(<span id="index-5">-</span>)</span></div>
                         <input type="number" id="hole-5" name="hole5" min="1" max="9" maxlength="1" aria-label="Hole 5 strokes">
                         <span class="hole-pts" id="points-5">0</span>
                       </div>
@@ -514,7 +585,7 @@
                         <span class="hole-pts" id="points-6">0</span>
                       </div>
                       <div class="hole-card" id="hole-card-7" data-hole="7">
-                        <div class="hole-info">#7 Par <span id="par-7">-</span> <span class="hole-index-wrap">(<span id="index-7">-</span>)</span></div>
+                        <div class="hole-info"><span class="hole-num">#7</span> Par <span id="par-7">-</span> <span class="hole-index-wrap">(<span id="index-7">-</span>)</span></div>
                         <input type="number" id="hole-7" name="hole7" min="1" max="9" maxlength="1" aria-label="Hole 7 strokes">
                         <span class="hole-pts" id="points-7">0</span>
                       </div>
@@ -524,7 +595,7 @@
                         <span class="hole-pts" id="points-8">0</span>
                       </div>
                       <div class="hole-card" id="hole-card-9" data-hole="9">
-                        <div class="hole-info">#9 Par <span id="par-9">-</span> <span class="hole-index-wrap">(<span id="index-9">-</span>)</span></div>
+                        <div class="hole-info"><span class="hole-num">#9</span> Par <span id="par-9">-</span> <span class="hole-index-wrap">(<span id="index-9">-</span>)</span></div>
                         <input type="number" id="hole-9" name="hole9" min="1" max="9" maxlength="1" aria-label="Hole 9 strokes">
                         <span class="hole-pts" id="points-9">0</span>
                       </div>
@@ -534,16 +605,16 @@
 
                 <!-- Back 9 - Holes 10-18 horizontal scroll -->
                 <div class="sidescroll-section">
-                  <h3><span>Holes 10 – 18</span><span class="sidescroll-section-heading-totals">Strokes <span class="in-score-header">0</span> Points <span class="in-points-header">0</span></span></h3>
+                  <h3><span>Back 9</span><span class="sidescroll-section-heading-totals">Strokes <span class="in-score-header">0</span> Points <span class="in-points-header">0</span></span></h3>
                   <div class="sidescroll-track" id="back9-track" role="region" aria-label="Back nine holes">
                     <div class="sidescroll-holes">
                       <div class="hole-card" id="hole-card-10" data-hole="10">
-                        <div class="hole-info">#10 Par <span id="par-10">-</span> <span class="hole-index-wrap">(<span id="index-10">-</span>)</span></div>
+                        <div class="hole-info"><span class="hole-num">#10</span> Par <span id="par-10">-</span> <span class="hole-index-wrap">(<span id="index-10">-</span>)</span></div>
                         <input type="number" id="hole-10" name="hole10" min="1" max="9" maxlength="1" aria-label="Hole 10 strokes">
                         <span class="hole-pts" id="points-10">0</span>
                       </div>
                       <div class="hole-card" id="hole-card-11" data-hole="11">
-                        <div class="hole-info">#11 Par <span id="par-11">-</span> <span class="hole-index-wrap">(<span id="index-11">-</span>)</span></div>
+                        <div class="hole-info"><span class="hole-num">#11</span> Par <span id="par-11">-</span> <span class="hole-index-wrap">(<span id="index-11">-</span>)</span></div>
                         <input type="number" id="hole-11" name="hole11" min="1" max="9" maxlength="1" aria-label="Hole 11 strokes">
                         <span class="hole-pts" id="points-11">0</span>
                       </div>
@@ -553,7 +624,7 @@
                         <span class="hole-pts" id="points-12">0</span>
                       </div>
                       <div class="hole-card" id="hole-card-13" data-hole="13">
-                        <div class="hole-info">#13 Par <span id="par-13">-</span> <span class="hole-index-wrap">(<span id="index-13">-</span>)</span></div>
+                        <div class="hole-info"><span class="hole-num">#13</span> Par <span id="par-13">-</span> <span class="hole-index-wrap">(<span id="index-13">-</span>)</span></div>
                         <input type="number" id="hole-13" name="hole13" min="1" max="9" maxlength="1" aria-label="Hole 13 strokes">
                         <span class="hole-pts" id="points-13">0</span>
                       </div>
@@ -563,12 +634,12 @@
                         <span class="hole-pts" id="points-14">0</span>
                       </div>
                       <div class="hole-card" id="hole-card-15" data-hole="15">
-                        <div class="hole-info">#15 Par <span id="par-15">-</span> <span class="hole-index-wrap">(<span id="index-15">-</span>)</span></div>
+                        <div class="hole-info"><span class="hole-num">#15</span> Par <span id="par-15">-</span> <span class="hole-index-wrap">(<span id="index-15">-</span>)</span></div>
                         <input type="number" id="hole-15" name="hole15" min="1" max="9" maxlength="1" aria-label="Hole 15 strokes">
                         <span class="hole-pts" id="points-15">0</span>
                       </div>
                       <div class="hole-card" id="hole-card-16" data-hole="16">
-                        <div class="hole-info">#16 Par <span id="par-16">-</span> <span class="hole-index-wrap">(<span id="index-16">-</span>)</span></div>
+                        <div class="hole-info"><span class="hole-num">#16</span> Par <span id="par-16">-</span> <span class="hole-index-wrap">(<span id="index-16">-</span>)</span></div>
                         <input type="number" id="hole-16" name="hole16" min="1" max="9" maxlength="1" aria-label="Hole 16 strokes">
                         <span class="hole-pts" id="points-16">0</span>
                       </div>
@@ -578,7 +649,7 @@
                         <span class="hole-pts" id="points-17">0</span>
                       </div>
                       <div class="hole-card" id="hole-card-18" data-hole="18">
-                        <div class="hole-info">#18 Par <span id="par-18">-</span> <span class="hole-index-wrap">(<span id="index-18">-</span>)</span></div>
+                        <div class="hole-info"><span class="hole-num">#18</span> Par <span id="par-18">-</span> <span class="hole-index-wrap">(<span id="index-18">-</span>)</span></div>
                         <input type="number" id="hole-18" name="hole18" min="1" max="9" maxlength="1" aria-label="Hole 18 strokes">
                         <span class="hole-pts" id="points-18">0</span>
                       </div>
@@ -588,28 +659,21 @@
 
                 <!-- Summary section - Front 9, Back 9, 18 hole -->
                 <div class="sidescroll-summary">
-                  <h3>Summary</h3>
-                  <div class="sidescroll-summary-grid">
-                    <div class="summary-box">
-                      <h4>Front 9</h4>
-                      <div class="summary-value" id="out-score">0</div>
-                      <div class="summary-sub">Score</div>
-                      <div class="summary-value points" id="out-points">0</div>
-                      <div class="summary-sub">Points</div>
+                  <div class="summary-rows">
+                    <div class="summary-row">
+                      <span class="summary-label">Front 9</span>
+                      <span class="summary-strokes"><span class="summary-value" id="out-score">0</span> Strokes</span>
+                      <span class="summary-points"><span class="summary-value points" id="out-points">0</span> Points</span>
                     </div>
-                    <div class="summary-box">
-                      <h4>Back 9</h4>
-                      <div class="summary-value" id="in-score">0</div>
-                      <div class="summary-sub">Score</div>
-                      <div class="summary-value points" id="in-points">0</div>
-                      <div class="summary-sub">Points</div>
+                    <div class="summary-row">
+                      <span class="summary-label">Back 9</span>
+                      <span class="summary-strokes"><span class="summary-value" id="in-score">0</span> Strokes</span>
+                      <span class="summary-points"><span class="summary-value points" id="in-points">0</span> Points</span>
                     </div>
-                    <div class="summary-box">
-                      <h4>18 Holes</h4>
-                      <div class="summary-value" id="total-score">0</div>
-                      <div class="summary-sub">Score</div>
-                      <div class="summary-value points" id="total-points">0</div>
-                      <div class="summary-sub">Points</div>
+                    <div class="summary-row summary-row--total">
+                      <span class="summary-label">18 Holes</span>
+                      <span class="summary-strokes"><span class="summary-value" id="total-score">0</span> Strokes</span>
+                      <span class="summary-points"><span class="summary-value points" id="total-points">0</span> Points</span>
                     </div>
                   </div>
                 </div>
