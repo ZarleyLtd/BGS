@@ -122,6 +122,12 @@ const ScorecardPage = {
   pars: null,
   indexes: null,
 
+  /** When an existing score is loaded (loadScoreIntoForm), store it here for "Already recorded" check and delete. */
+  _loadedExistingScore: null,
+
+  // Track the last name we applied/loaded so we can clear the card when the user changes it.
+  _lastPlayerNameKey: '',
+
   init: async function() {
     const scorecardForm = document.getElementById('scorecard-form');
     if (!scorecardForm) {
@@ -267,14 +273,21 @@ const ScorecardPage = {
         return;
       }
       
-      const courseKey = outing.courseName;
-      
+      const possibleCourseName = outing.courseName;
+      const mappedClubKey = (typeof OutingsConfig.mapClubNameToCourseKey === 'function')
+        ? OutingsConfig.mapClubNameToCourseKey(outing.clubName)
+        : null;
+
+      const courseKey =
+        this.resolveCourseKeyFromPossibleName(possibleCourseName) ||
+        this.resolveCourseKeyFromPossibleName(mappedClubKey);
+
       // Check if the course exists in the courses object
-      if (!this.courses[courseKey]) {
-        console.warn(`Course "${courseKey}" not found in courses list. Available courses:`, Object.keys(this.courses).join(', '));
+      if (!courseKey || !this.courses[courseKey]) {
+        console.warn(`Course "${possibleCourseName}" not found in courses list. Available courses:`, Object.keys(this.courses).join(', '));
         return;
       }
-      
+
       // Set as default course
       this.currentCourse = courseKey;
       console.log(`Default course set to "${courseKey}" based on next outing: ${outing.clubName}`);
@@ -346,9 +359,39 @@ const ScorecardPage = {
     }
 
     select.innerHTML = '<option value="">Select Course</option>';
-    
-    const courseKeys = Object.keys(this.courses).sort();
-    
+
+    const courseKeysAll = Object.keys(this.courses || {});
+
+    // Only include courses that appear in the 2026 outings list.
+    // (Course is treated as the unique identifier for an outing.)
+    const courseKeysFromOutings2026 = new Set();
+    if (typeof OutingsConfig !== 'undefined' && Array.isArray(OutingsConfig.OUTINGS_2026)) {
+      const courseKeyByNorm = {};
+      for (const ck of courseKeysAll) {
+        courseKeyByNorm[this.normalizeCourseKey(ck)] = ck;
+      }
+
+      OutingsConfig.OUTINGS_2026.forEach(outing => {
+        if (!outing) return;
+
+        const candidates = [];
+        if (outing.courseName) candidates.push(outing.courseName);
+        if (outing.clubName && typeof OutingsConfig.mapClubNameToCourseKey === 'function') {
+          const mapped = OutingsConfig.mapClubNameToCourseKey(outing.clubName);
+          if (mapped) candidates.push(mapped);
+        }
+
+        for (let i = 0; i < candidates.length; i++) {
+          const cand = candidates[i];
+          const resolved = courseKeyByNorm[this.normalizeCourseKey(cand)];
+          if (resolved) courseKeysFromOutings2026.add(resolved);
+        }
+      });
+    }
+
+    const courseKeys =
+      courseKeysFromOutings2026.size > 0 ? [...courseKeysFromOutings2026].sort() : courseKeysAll.sort();
+
     courseKeys.forEach(courseName => {
       const option = document.createElement('option');
       option.value = courseName;
@@ -411,8 +454,10 @@ const ScorecardPage = {
         this.currentCourse = e.target.value;
         if (this.currentCourse) {
           this.updateCourseData();
-          // Clear all inputs and recalculate
           this.clearInputs();
+        } else {
+          this._loadedExistingScore = null;
+          this.updateDeleteButtonVisibility();
         }
       });
       
@@ -422,14 +467,16 @@ const ScorecardPage = {
       });
     }
 
-    // Handle input field changes (auto-tab and calculation)
+    // Handle input field changes (auto-tab and calculation); track last-focused hole for draft
     for (let i = 1; i <= 18; i++) {
       const input = document.getElementById(`hole-${i}`);
       if (input) {
+        input.addEventListener('focus', () => {
+          this._lastFocusedHole = i;
+        });
         input.addEventListener('input', (e) => {
           this.handleInput(e.target, i);
         });
-        
         input.addEventListener('keyup', (e) => {
           if (e.key === 'Enter') {
             this.autotab(e.target, i);
@@ -472,6 +519,15 @@ const ScorecardPage = {
       
       // Check for existing score when name loses focus
       playerInput.addEventListener('blur', () => {
+        const newNameKey = this.normalizeName(playerInput.value.trim());
+
+        // If the user changed the name (including selecting from the dropdown),
+        // blank out any hole scores currently on the card before checking.
+        if (newNameKey !== this._lastPlayerNameKey) {
+          this._lastPlayerNameKey = newNameKey;
+          this.clearInputs();
+        }
+
         this.checkForExistingScore();
       });
     }
@@ -484,8 +540,16 @@ const ScorecardPage = {
       });
     }
 
-    // Transfer to side-scroll view: save draft and navigate (only on standard page)
-    const sidescrollLink = document.querySelector('.scorecard-view-toggle[href="scorecard-sidescroll.html"]');
+    // Delete score button (shown when an existing score is loaded)
+    const deleteBtn = document.getElementById('delete-score-btn');
+    if (deleteBtn) {
+      deleteBtn.addEventListener('click', () => {
+        this.deleteLoadedScore();
+      });
+    }
+
+    // Transfer to side-scroll view: save draft and navigate
+    const sidescrollLink = document.querySelector('.scorecard-view-toggle[href*="scorecard-sidescroll"]');
     if (sidescrollLink) {
       sidescrollLink.addEventListener('click', (e) => {
         e.preventDefault();
@@ -497,18 +561,72 @@ const ScorecardPage = {
           const input = document.getElementById('hole-' + i);
           holes.push(input ? (input.value || '') : '');
         }
+        let focusedHole = null;
+        const active = document.activeElement;
+        if (active && active.id && /^hole-\d+$/.test(active.id)) {
+          const n = parseInt(active.id.replace('hole-', ''), 10);
+          if (n >= 1 && n <= 18) focusedHole = n;
+        }
+        if (focusedHole == null && this._lastFocusedHole >= 1 && this._lastFocusedHole <= 18) {
+          focusedHole = this._lastFocusedHole;
+        }
         const draft = {
           course: courseSelect ? courseSelect.value || '' : '',
           playerName: playerInput ? (playerInput.value || '').trim() : '',
           handicap: handicapInput ? (handicapInput.value || '').trim() : '',
-          holes: holes
+          holes: holes,
+          focusedHole: focusedHole
         };
         try {
           sessionStorage.setItem('bgs_scorecard_draft', JSON.stringify(draft));
         } catch (err) {}
-        window.location.href = 'scorecard-sidescroll.html';
+        window.location.href = sidescrollLink.getAttribute('href') || 'scorecard-sidescroll.html';
       });
     }
+  },
+
+  updateDeleteButtonVisibility: function() {
+    const btn = document.getElementById('delete-score-btn');
+    if (btn) {
+      btn.style.display = this._loadedExistingScore ? 'inline-flex' : 'none';
+    }
+  },
+
+  deleteLoadedScore: function() {
+    const score = this._loadedExistingScore;
+    if (!score || !score.playerName || !score.course || !score.date) {
+      this.showMessage('No score loaded to delete.', false);
+      return;
+    }
+    const deleteBtn = document.getElementById('delete-score-btn');
+    if (deleteBtn) {
+      deleteBtn.disabled = true;
+      deleteBtn.textContent = 'Deleting…';
+    }
+    const payload = {
+      playerName: score.playerName,
+      course: score.course,
+      date: score.date,
+      timestamp: score.timestamp || ''
+    };
+    ApiClient.post('deleteScore', payload)
+      .then(() => {
+        this._loadedExistingScore = null;
+        this.updateDeleteButtonVisibility();
+        this.clearInputs();
+        if (deleteBtn) {
+          deleteBtn.disabled = false;
+          deleteBtn.textContent = 'Delete score';
+        }
+        this.showMessage('Score deleted.', false);
+      })
+      .catch((err) => {
+        if (deleteBtn) {
+          deleteBtn.disabled = false;
+          deleteBtn.textContent = 'Delete score';
+        }
+        this.showMessage(err.message || 'Unable to delete score.', true);
+      });
   },
 
   handleInput: function(input, holeNum) {
@@ -699,7 +817,8 @@ const ScorecardPage = {
   },
 
   clearInputs: function() {
-    // Clear all stroke inputs
+    this._loadedExistingScore = null;
+    this.updateDeleteButtonVisibility();
     for (let i = 1; i <= 18; i++) {
       const input = document.getElementById(`hole-${i}`);
       if (input) input.value = '';
@@ -711,6 +830,37 @@ const ScorecardPage = {
   normalizeName: function(name) {
     if (!name) return '';
     return name.toLowerCase().replace(/\s+/g, '');
+  },
+
+  // Normalize course names for matching between:
+  // - outing configuration values
+  // - scorecard course keys (as stored in dropdown & sheet)
+  normalizeCourseKey: function(courseName) {
+    if (courseName == null) return '';
+    return String(courseName)
+      .replace(/\+/g, ' ')
+      .replace(/\u00A0/g, ' ')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '');
+  },
+
+  // Resolve an outing's course name to the actual key in `this.courses`.
+  resolveCourseKeyFromPossibleName: function(possibleCourseName) {
+    if (!possibleCourseName) return null;
+    const trimmed = String(possibleCourseName).trim();
+    if (!trimmed) return null;
+
+    // Exact match first
+    if (this.courses && this.courses[trimmed]) return trimmed;
+
+    // Otherwise try normalized match (e.g. removing spaces)
+    const norm = this.normalizeCourseKey(trimmed);
+    if (!this.courses || !norm) return null;
+    for (const k of Object.keys(this.courses)) {
+      if (this.normalizeCourseKey(k) === norm) return k;
+    }
+    return null;
   },
 
   // Show subtle loading message (non-blocking, auto-dismisses)
@@ -828,15 +978,12 @@ const ScorecardPage = {
     
     // Show loading message
     this.showLoadingMessage('Checking for existing score...');
-    
-    // Get current date
-    const date = new Date().toISOString().split('T')[0];
-    
-    // Check for existing score
+
+    // Check for existing score:
+    // keying is based on course + player only (date/time ignored).
     ApiClient.post('checkExistingScore', {
       playerName: playerName,
-      course: course,
-      date: date
+      course: course
     })
       .then(result => {
         this.hideLoadingMessage();
@@ -856,36 +1003,35 @@ const ScorecardPage = {
 
   // Save/Load functionality
   saveScore: function() {
+    const saveBtn = document.getElementById('save-score-btn');
     const playerName = document.getElementById('player-name')?.value.trim();
     const handicap = parseInt(document.getElementById('handicap')?.value) || 0;
     const course = this.currentCourse;
-    
+
     if (!playerName) {
       this.showMessage('Please enter your name', false);
       return;
     }
-    
+
     if (!course) {
       this.showMessage('Please select a course', false);
       return;
     }
-    
+
     if (handicap === 0) {
       this.showMessage('Please enter your handicap', false);
       return;
     }
-    
+
     if (!this.pars || !this.indexes) {
       this.showMessage('Please select a course', false);
       return;
     }
-    
-    // Get all hole scores (strokes)
+
     const holes = [];
     const holePoints = [];
     let hasScores = false;
-    
-    // Calculate shots received per hole
+
     const shots = [];
     for (let i = 0; i < 18; i++) {
       if (this.indexes[i] <= handicap) {
@@ -894,14 +1040,12 @@ const ScorecardPage = {
         shots[i] = Math.floor(Math.max((handicap - this.indexes[i]), 0) / 18);
       }
     }
-    
-    // Get strokes and calculate points for each hole
+
     for (let i = 0; i < 18; i++) {
       const input = document.getElementById(`hole-${i + 1}`);
       const strokes = input && input.value ? parseInt(input.value) : 0;
       holes.push(strokes);
-      
-      // Calculate points for this hole
+
       let points = 0;
       if (strokes > 0) {
         const netStrokes = strokes - shots[i];
@@ -909,13 +1053,49 @@ const ScorecardPage = {
         points = Math.max(netVsPar + 2, 0);
       }
       holePoints.push(points);
-      
+
       if (strokes > 0) hasScores = true;
     }
-    
+
     if (!hasScores) {
-      this.showMessage('Please enter at least one hole score', false);
+      if (typeof BriefMessage === 'function' && saveBtn) {
+        BriefMessage('No Score entered', saveBtn);
+      } else {
+        this.showMessage('Please enter at least one hole score', false);
+      }
       return;
+    }
+
+    // Already recorded: form matches loaded score
+    if (this._loadedExistingScore) {
+      const sameHc = Number(this._loadedExistingScore.handicap) === handicap;
+      let sameHoles = true;
+
+      // Historical data may store empty holes inconsistently ('' vs '0' vs 0).
+      // Treat all zero-like values as blank for the "already recorded" comparison.
+      const normalizeHoleForCompare = (val) => {
+        if (val === '' || val === null || val === undefined) return '';
+        const s = String(val).trim();
+        return s === '' || s === '0' ? '' : s;
+      };
+
+      for (let i = 0; i < 18; i++) {
+        const existingVal = this._loadedExistingScore.holes[i];
+        const existing = normalizeHoleForCompare(existingVal);
+        const current = normalizeHoleForCompare(holes[i]);
+        if (current !== existing) {
+          sameHoles = false;
+          break;
+        }
+      }
+      if (sameHc && sameHoles) {
+        if (typeof BriefMessage === 'function' && saveBtn) {
+          BriefMessage('Score already recorded', saveBtn);
+        } else {
+          this.showMessage('Already recorded.', false);
+        }
+        return;
+      }
     }
     
     // Calculate totals
@@ -959,8 +1139,10 @@ const ScorecardPage = {
     const totalScore = OUTtotScore + INtotScore;
     const totalPoints = OUTtotPts + INtotPts;
     
-    // Get current date
-    const date = new Date().toISOString().split('T')[0];
+    // When editing an existing score, preserve the originally recorded date.
+    const date = (this._loadedExistingScore && this._loadedExistingScore.date)
+      ? this._loadedExistingScore.date
+      : new Date().toISOString().split('T')[0];
     
     const scoreData = {
       playerName: playerName,
@@ -980,9 +1162,7 @@ const ScorecardPage = {
       back3Score: BACK3totScore,
       back3Points: BACK3totPts
     };
-    
-    // Show loading state with spinner
-    const saveBtn = document.getElementById('save-score-btn');
+
     const originalBtnText = saveBtn ? saveBtn.innerHTML : 'Submit Score';
     
     if (saveBtn) {
@@ -997,6 +1177,33 @@ const ScorecardPage = {
           saveBtn.disabled = false;
           saveBtn.innerHTML = originalBtnText;
         }
+
+        // Update in-memory loaded score so a second submit (no changes)
+        // is recognized as "already recorded".
+        // Normalize empty holes to '' (backend may store blanks as '').
+        const normalizedHoles = holes.map(v => (v === 0 ? '' : v));
+        this._loadedExistingScore = {
+          playerName: playerName,
+          course: course,
+          date: date,
+          handicap: handicap,
+          holes: normalizedHoles,
+          holePoints: holePoints,
+          totalScore: totalScore,
+          totalPoints: totalPoints,
+          outScore: OUTtotScore,
+          outPoints: OUTtotPts,
+          inScore: INtotScore,
+          inPoints: INtotPts,
+          back6Score: BACK6totScore,
+          back6Points: BACK6totPts,
+          back3Score: BACK3totScore,
+          back3Points: BACK3totPts,
+          // Preserve timestamp from previously loaded score (if any),
+          // since backend update preserves date/time for that record.
+          timestamp: (this._loadedExistingScore && this._loadedExistingScore.timestamp) ? this._loadedExistingScore.timestamp : ''
+        };
+        this.updateDeleteButtonVisibility();
         
         // Show user-friendly success message with points score
         const pointsMessage = `Your points score of ${totalPoints} was successfully recorded`;
@@ -1027,17 +1234,13 @@ const ScorecardPage = {
 
 
   loadScoreIntoForm: function(score) {
-    // When loading an existing score, only update handicap and scores
-    // Do NOT change Course or Player - they were already entered by the user
-    
-    // Set handicap
+    this._loadedExistingScore = score;
+    this._lastPlayerNameKey = this.normalizeName(score && score.playerName ? score.playerName : '');
+    this.updateDeleteButtonVisibility();
+
     const handicapInput = document.getElementById('handicap');
     if (handicapInput) handicapInput.value = score.handicap;
-    
-    // Do NOT set course - keep the user's current selection
-    // The course was already selected when checking for existing score
-    
-    // Set hole scores
+
     for (let i = 0; i < 18; i++) {
       const input = document.getElementById(`hole-${i + 1}`);
       if (input && score.holes[i] !== '' && score.holes[i] !== null) {
@@ -1046,11 +1249,8 @@ const ScorecardPage = {
         input.value = '';
       }
     }
-    
-    // Recalculate scores
+
     this.calculateScores();
-    
-    // Scroll to top of form
     document.getElementById('scorecard-form')?.scrollIntoView({ behavior: 'smooth' });
   },
 
@@ -1092,6 +1292,7 @@ const ScorecardPage = {
 
     const playerInput = document.getElementById('player-name');
     if (playerInput && draft.playerName !== undefined) playerInput.value = draft.playerName;
+    this._lastPlayerNameKey = this.normalizeName(draft.playerName);
 
     const handicapInput = document.getElementById('handicap');
     if (handicapInput && draft.handicap !== undefined) handicapInput.value = draft.handicap;
@@ -1107,25 +1308,27 @@ const ScorecardPage = {
     this.calculateScores();
     document.getElementById('scorecard-form')?.scrollIntoView({ behavior: 'smooth' });
 
-    // Focus first blank field so user can continue typing
-    const playerEl = document.getElementById('player-name');
-    const handicapEl = document.getElementById('handicap');
-    const toFocus =
-      (playerEl && (!draft.playerName || String(draft.playerName).trim() === '')) ? playerEl :
-      (handicapEl && (!draft.handicap || String(draft.handicap).trim() === '')) ? handicapEl :
-      (function() {
-        for (let i = 0; i < 18; i++) {
-          const v = draft.holes[i];
-          if (v === undefined || v === null || String(v).trim() === '') {
-            const input = document.getElementById('hole-' + (i + 1));
-            if (input) return input;
+    const holeNum = (draft.focusedHole >= 1 && draft.focusedHole <= 18) ? draft.focusedHole : null;
+    const toFocus = holeNum
+      ? document.getElementById('hole-' + holeNum)
+      : (function() {
+          const playerEl = document.getElementById('player-name');
+          const handicapEl = document.getElementById('handicap');
+          if (playerEl && (!draft.playerName || String(draft.playerName).trim() === '')) return playerEl;
+          if (handicapEl && (!draft.handicap || String(draft.handicap).trim() === '')) return handicapEl;
+          for (let i = 0; i < 18; i++) {
+            const v = draft.holes[i];
+            if (v === undefined || v === null || String(v).trim() === '') {
+              const input = document.getElementById('hole-' + (i + 1));
+              if (input) return input;
+            }
           }
-        }
-        return null;
-      })();
+          return null;
+        })();
     if (toFocus) {
       requestAnimationFrame(function() {
         toFocus.focus();
+        if (toFocus.select) toFocus.select();
       });
     }
   },

@@ -140,14 +140,17 @@ function saveScore(data) {
       sheet.appendRow(headers);
     }
     
-    // Check if a record already exists for this course/name/date
+    // Check if a record already exists for this course/name.
+    // Date/time are NOT part of the lookup key.
     const playerName = String(data.playerName || '').trim();
     const course = String(data.course || '').trim();
-    const date = String(data.date || new Date().toISOString().split('T')[0]).trim();
+    const dateForAppend = String(data.date || new Date().toISOString().split('T')[0]).trim();
     
     const normalizedPlayerName = normalizeName(playerName);
     
     let existingRowIndex = -1;
+    let existingRowDate = null;
+    let existingRowTimestamp = null;
     if (sheet.getLastRow() > 1) {
       const rows = sheet.getDataRange().getValues();
       // Start from row 1 (skip header)
@@ -155,13 +158,13 @@ function saveScore(data) {
         const row = rows[i];
         const rowPlayerName = String(row[0] || '').trim();
         const rowCourse = String(row[1] || '').trim();
-        const rowDate = normalizeDate(row[2] || '');
         
         // Compare with normalized names (case-insensitive, ignore spaces)
         if (normalizeName(rowPlayerName) === normalizedPlayerName &&
-            rowCourse === course &&
-            rowDate === date) {
+            rowCourse === course) {
           existingRowIndex = i + 1; // +1 because sheet rows are 1-indexed
+          existingRowDate = row[2];
+          existingRowTimestamp = row[50];
           break;
         }
       }
@@ -172,7 +175,7 @@ function saveScore(data) {
     const row = [
       data.playerName || '',
       data.course || '',
-      data.date || new Date().toISOString().split('T')[0],
+      existingRowIndex > 0 ? existingRowDate : dateForAppend,
       data.handicap || 0,
       // Strokes for each hole (18 holes)
       data.holes[0] || '', data.holes[1] || '', data.holes[2] || '', data.holes[3] || '',
@@ -197,7 +200,7 @@ function saveScore(data) {
       data.back6Points || 0,
       data.back3Score || 0,
       data.back3Points || 0,
-      new Date().toISOString()
+      existingRowIndex > 0 ? existingRowTimestamp : new Date().toISOString()
     ];
     
     if (existingRowIndex > 0) {
@@ -236,7 +239,6 @@ function checkExistingScore(data) {
     
     const playerName = String(data.playerName || '').trim();
     const course = String(data.course || '').trim();
-    const date = String(data.date || new Date().toISOString().split('T')[0]).trim();
     
     const normalizedPlayerName = normalizeName(playerName);
     
@@ -247,12 +249,10 @@ function checkExistingScore(data) {
       const row = rows[i];
       const rowPlayerName = String(row[0] || '').trim();
       const rowCourse = String(row[1] || '').trim();
-      const rowDate = normalizeDate(row[2] || '');
       
       // Compare with normalized names (case-insensitive, ignore spaces)
       if (normalizeName(rowPlayerName) === normalizedPlayerName &&
-          rowCourse === course &&
-          rowDate === date) {
+          rowCourse === course) {
         // Found existing score - return it
         let timestamp = row[46] || '';
         if (timestamp instanceof Date) {

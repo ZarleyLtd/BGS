@@ -10,6 +10,338 @@
       content="View the current leaderboard for Bushwhackers @ the Botanic Golf Society."
     />
     <link rel="stylesheet" href="assets/css/style.css" />
+    <style>
+      /* === Leaderboard layout (ported from theGolfApp; society-specific selectors removed) === */
+      :root { --lb-accent: #169179; --lb-breakpoint: 600px; }
+
+      .content .entry-wrapper.content__entry {
+        padding-left: 0.25rem;
+        padding-right: 0.25rem;
+        width: auto;
+      }
+      .leaderboard-page-container {
+        max-width: 1200px;
+        margin: 2em 0;
+        padding: 2em 0.5rem;
+      }
+      @media (max-width: 600px) {
+        #main-content.entry-wrapper.content__entry,
+        .leaderboard-page-container {
+          padding-left: 0.5rem;
+          padding-right: 0.5rem;
+        }
+      }
+
+      .leaderboard-container {
+        margin: 0;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      /* --- Overall Leaders section --- */
+      .lb-section { margin-bottom: 3em; }
+      .lb-section-title {
+        font-size: 1.5em;
+        font-weight: 700;
+        color: var(--lb-accent);
+        margin-bottom: 0.75em;
+        padding-bottom: 0.35em;
+        border-bottom: 2px solid var(--lb-accent);
+      }
+      .lb-section-title-subline {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        font-size: 0.55em;
+        font-weight: 400;
+        color: #888;
+        margin-top: 0.25em;
+      }
+      .lb-section-title-subline .lb-section-title-scores { text-align: right; }
+      .lb-subsection-title {
+        font-size: 1.1em;
+        font-weight: 600;
+        color: #444;
+        margin: 1.25em 0 0.5em 0;
+      }
+      .lb-overall-grid {
+        display: grid;
+        grid-template-columns: 4em 1fr 12em;
+        background: #fff;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      @media (max-width: 600px) {
+        .lb-overall-grid { width: 100%; }
+      }
+      .lb-overall-grid-header {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: subgrid;
+        background: var(--lb-accent);
+        color: #fff;
+        padding: 1em 0.75em;
+        font-weight: 600;
+        font-size: 0.9em;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .lb-overall-grid-header span:last-child { text-align: right; }
+      .lb-overall-grid-row {
+        display: grid;
+        grid-template-columns: subgrid;
+        grid-column: 1 / -1;
+        padding: 1em 0.75em;
+        border-bottom: 1px solid #e0e0e0;
+        align-items: center;
+      }
+      .lb-overall-grid-row:last-child { border-bottom: none; }
+      .lb-overall-grid-row:hover { background-color: #f5f5f5; }
+      .lb-overall-grid .text-right { text-align: right; }
+      .lb-overall-breakdown { color: #888; font-size: 0.9em; font-weight: normal; }
+      .lb-overall-total { font-weight: 700; color: var(--lb-accent); font-size: 1.1em; }
+      .lb-overall-grid-row.lb-overall-row-with-detail { cursor: pointer; }
+      .lb-overall-row-detail {
+        grid-column: 1 / -1;
+        padding: 0 0.75em 1em 0.25em;
+        border-bottom: 1px solid #e0e0e0;
+        background: #fafafa;
+        display: none;
+      }
+      .lb-overall-row-detail.is-open { display: block; }
+      .lb-overall-row-detail-grid {
+        display: grid;
+        /* Make the right "pts" column narrow so the middle description can grow/wrap */
+        grid-template-columns: 1em 1fr 3.6em;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        font-size: 0.9em;
+      }
+      .lb-overall-row-detail-grid li {
+        display: grid;
+        grid-template-columns: subgrid;
+        grid-column: 1 / -1;
+        padding: 0.35em 0;
+        border-bottom: 1px solid #eee;
+        align-items: center;
+      }
+      .lb-overall-row-detail-grid li:last-child { border-bottom: none; }
+      .lb-overall-detail-pos { font-weight: 600; color: var(--lb-accent); }
+      .lb-overall-detail-pts-right {
+        text-align: right;
+        font-weight: 600;
+        color: var(--lb-accent);
+        justify-self: end;
+        white-space: nowrap;
+      }
+
+      /* Allow the middle grid cell to shrink and wrap when the right cell is narrow */
+      .lb-overall-row-detail-grid li > span:nth-child(2) {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+
+      /* --- Per-outing tables --- */
+      .lb-table-scroll-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        margin: 0;
+      }
+      .leaderboard-table {
+        width: 100%;
+        min-width: 320px;
+        table-layout: fixed;
+        border-collapse: collapse;
+        margin: 0;
+        background: #fff;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .leaderboard-table thead { background: var(--lb-accent); color: #fff; }
+      .leaderboard-table th {
+        padding: 1em 0.75em;
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.9em;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .leaderboard-table th:first-child { padding-left: 1.5em; }
+      .leaderboard-table th:last-child { padding-right: 1.5em; }
+      .leaderboard-table th.text-center { text-align: center; }
+      .leaderboard-table th.text-right { text-align: right; }
+      .leaderboard-table tbody tr {
+        border-bottom: 1px solid #e0e0e0;
+        transition: background-color 0.2s;
+      }
+      .leaderboard-table tbody tr:hover { background-color: #f5f5f5; }
+      .leaderboard-table tbody tr:last-child { border-bottom: none; }
+      .leaderboard-table td {
+        padding: 1em 0.75em;
+        vertical-align: middle;
+      }
+      .leaderboard-table td:first-child { padding-left: 1.5em; }
+      .leaderboard-table td:last-child { padding-right: 1.5em; }
+      .leaderboard-table td.text-center { text-align: center; }
+      .leaderboard-table td.text-right { text-align: right; }
+      .leaderboard-table--outing th:nth-child(1),
+      .leaderboard-table--outing td:nth-child(1) { width: 10%; }
+      .leaderboard-table--outing th:nth-child(2),
+      .leaderboard-table--outing td:nth-child(2) { width: 55%; }
+      .leaderboard-table--outing th:nth-child(3),
+      .leaderboard-table--outing td:nth-child(3) { width: 15%; }
+      .leaderboard-table--outing th:nth-child(4),
+      .leaderboard-table--outing td:nth-child(4) { width: 20%; }
+      @media (max-width: 600px) {
+        .leaderboard-table { font-size: 0.85em; }
+        .leaderboard-table th, .leaderboard-table td { padding: 0.75em 0.5em; }
+        .leaderboard-table th:first-child, .leaderboard-table td:first-child { padding-left: 1em; }
+        .leaderboard-table th:last-child, .leaderboard-table td:last-child { padding-right: 1em; }
+      }
+      .leaderboard-position { font-weight: 700; color: var(--lb-accent); font-size: 1.1em; }
+      .leaderboard-player-name { font-weight: 600; color: #333; }
+      .leaderboard-course { color: #666; font-size: 0.9em; }
+      .leaderboard-date { color: #999; font-size: 0.85em; }
+      .leaderboard-points { font-weight: 700; color: var(--lb-accent); font-size: 1.1em; }
+      .leaderboard-score { color: #333; }
+      .leaderboard-section { color: #666; font-size: 0.9em; }
+      .lb-outing-row { cursor: pointer; }
+
+      /* --- 18-hole expandable detail --- */
+      .lb-detail-row { display: none; }
+      .lb-detail-row.is-open { display: table-row; }
+      .lb-detail-row td {
+        padding: 0;
+        vertical-align: top;
+        border-bottom: 1px solid #e0e0e0;
+        background: #fafafa;
+      }
+      .lb-hole-detail-panel {
+        display: none;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        background: #fafafa;
+        border-bottom: 1px solid #e0e0e0;
+        padding: 0;
+        box-sizing: border-box;
+        cursor: pointer;
+      }
+      .lb-hole-detail-panel .lb-hole-detail-wrap { padding: 0.75em 1em 1em; }
+      .lb-hole-detail-panel.is-visible { display: block; }
+      .lb-team-detail { padding: 0.75em 1em 1em; }
+      .lb-team-detail-title { font-weight: 600; color: #333; margin: 0 0 0.5em 0; font-size: 0.95em; }
+      .lb-team-detail-list { margin: 0; padding-left: 1.25em; color: #555; }
+      .lb-team-detail-list li { margin-bottom: 0.25em; }
+
+      .lb-outing-block {
+        display: flex;
+        flex-direction: column;
+        border-bottom: 1px solid #e0e0e0;
+      }
+      .lb-outing-block .lb-outing-main {
+        display: grid;
+        grid-template-columns: 10% 55% 15% 20%;
+        padding: 1em 0.75em;
+        cursor: pointer;
+        align-items: center;
+        background: #fff;
+        transition: background-color 0.2s;
+      }
+      .lb-outing-block .lb-outing-main:hover { background-color: #f5f5f5; }
+      .lb-outing-block .lb-outing-main .lb-cell-pos { font-weight: 700; color: var(--lb-accent); font-size: 1.1em; }
+      .lb-outing-block .lb-outing-main .lb-cell-name { font-weight: 600; color: #333; }
+      .lb-outing-block .lb-outing-main .lb-cell-hcp { text-align: center; color: #666; font-size: 0.9em; }
+      .lb-outing-block .lb-outing-main .lb-cell-pts { text-align: right; font-weight: 700; color: var(--lb-accent); font-size: 1.1em; }
+      .lb-countback { font-size: 0.7em; font-weight: normal; color: #888; margin-right: 0.35em; }
+
+      .lb-outing-block .lb-hole-detail-panel {
+        display: none;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        background: #fafafa;
+        padding: 0.75em 1em 1em;
+        box-sizing: border-box;
+      }
+      .lb-outing-block .lb-hole-detail-panel.is-visible { display: block; }
+      .lb-outing-block-wrap { display: none; }
+      @media (max-width: 599px) {
+        .lb-detail-row.lb-detail-row--table { display: none !important; }
+        .lb-outing-block-wrap {
+          display: block;
+          background: #fff;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+          border-radius: 8px;
+          overflow: hidden;
+        }
+        .lb-table-scroll-wrap .leaderboard-table--outing { display: none; }
+        .lb-outing-block-wrap { font-size: 0.85em; }
+        .lb-outing-block-wrap .lb-outing-header {
+          display: grid;
+          grid-template-columns: 10% 55% 15% 20%;
+          padding: 0.75em 0.5em;
+          background: var(--lb-accent);
+          color: #fff;
+          font-weight: 600;
+          font-size: 0.9em;
+          text-transform: uppercase;
+        }
+        .lb-outing-block-wrap .lb-outing-main { padding: 0.75em 0.5em; }
+      }
+      @media (min-width: 600px) {
+        .lb-hole-detail-panel { display: none !important; }
+        .lb-outing-block-wrap { display: none !important; }
+      }
+
+      .lb-hole-detail-wrap {
+        width: 100%;
+        min-width: 0;
+      }
+      .lb-hole-detail-scroll {
+        overflow-x: auto;
+        overflow-y: visible;
+        max-height: none;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 0.75em 1em 1em;
+        cursor: pointer;
+        display: block;
+        -webkit-overflow-scrolling: touch;
+      }
+      .lb-hole-detail-grid {
+        display: grid;
+        grid-template-columns: 5em repeat(9, minmax(2em, 1fr)) 2.5em repeat(9, minmax(2em, 1fr)) 2.5em 2.5em;
+        grid-template-rows: repeat(5, auto);
+        gap: 0.15em 0.35em;
+        font-size: 0.85em;
+        font-family: monospace;
+        min-width: min-content;
+      }
+      .lb-hole-detail-grid > span { text-align: center; padding: 0.25em 0; align-self: center; }
+      .lb-hole-detail-grid > .lb-detail-label { text-align: left; font-weight: 600; color: #333; }
+      .lb-hole-detail-grid > .lb-detail-col-total { font-weight: 600; }
+      .lb-detail-strokes { color: #000; }
+      .lb-detail-points { color: var(--lb-accent); }
+      .lb-detail-points-66 { background: var(--lb-accent); color: #fff; border-radius: 2px; }
+      .lb-detail-strokes-p3 { background: var(--lb-accent); color: #fff; border-radius: 2px; }
+      .lb-detail-strokes-2s { background: var(--lb-accent); color: #fff; border-radius: 2px; }
+      .lb-detail-par { font-size: 0.9em; }
+      .lb-detail-index { font-size: 0.75em; color: #666; }
+
+      /* --- Utilities --- */
+      .lb-par3-detail { color: #888; font-size: 0.9em; }
+      .lb-twos-count { font-weight: normal; color: #888; font-size: 0.9em; }
+      .no-scores, .loading { text-align: center; padding: 3em 2em; color: #666; }
+      .lb-per-outing-list { list-style: none; padding: 0; margin: 0.5em 0; }
+      .lb-per-outing-list li { padding: 0.35em 0; border-bottom: 1px solid #eee; }
+      .lb-per-outing-list li:last-child { border-bottom: none; }
+      .lb-detail-cell-total { border: 1px solid var(--lb-accent); box-sizing: border-box; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <noscript>
       <style>
         img[loading] {
@@ -72,9 +404,11 @@
         </div>
         <div class="entry-wrapper content__entry">
           <section class="hero hero--image">
-            <p style="text-align: center; margin: 2em 0;">
-              <em>Content coming soon...</em>
-            </p>
+            <div class="wrapper leaderboard-page-container">
+              <div id="leaderboard-container" class="leaderboard-container">
+                <p class="loading">Loading leaderboard...</p>
+              </div>
+            </div>
           </section>
         </div>
       </article>
@@ -119,5 +453,13 @@
       };
     </script>
     <script src="assets/js/utils/nav-active.js"></script>
+    <!-- Scripts: config → utils → page (leaderboard) -->
+    <script src="assets/js/config/sheets-config.js"></script>
+    <script src="assets/js/config/outings-config.js"></script>
+    <script src="assets/js/utils/api-client.js"></script>
+    <script src="assets/js/utils/csv-loader.js"></script>
+    <script src="assets/js/utils/courses-loader.js"></script>
+    <script src="assets/js/pages/leaderboard.js"></script>
+    <script src="assets/js/main.js"></script>
   </body>
 </html>
