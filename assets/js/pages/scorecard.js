@@ -204,14 +204,13 @@ const ScorecardPage = {
    */
   loadCoursesFromSheet: async function() {
     try {
-      const url = SheetsConfig.getSheetUrl('courses');
-      if (!url) {
-        console.warn('Courses sheet URL not configured, using hardcoded courses');
-        return; // Keep existing hardcoded courses
+      if (typeof AppConfig === 'undefined' || !AppConfig.apiUrl || typeof CoursesLoader.loadFromApi !== 'function') {
+        console.warn('bgs-api not configured, using hardcoded courses');
+        return;
       }
-      
-      console.log('Loading courses from sheet:', url);
-      const loadedCourses = await CoursesLoader.load(url);
+
+      console.log('Loading courses from bgs-api');
+      const loadedCourses = await CoursesLoader.loadFromApi();
       
       if (loadedCourses && Object.keys(loadedCourses).length > 0) {
         // Replace hardcoded courses with loaded courses
@@ -231,23 +230,20 @@ const ScorecardPage = {
    */
   setDefaultCourseFromNextOuting: async function() {
     try {
-      const url = SheetsConfig.getSheetUrl('nextOuting');
-      if (!url) {
-        console.warn('Next outing sheet URL not configured, using default course');
+      if (typeof BgsData === 'undefined' || !AppConfig.apiUrl) {
+        console.warn('bgs-api not configured, using default course');
         return;
       }
-      
-      // Load CSV with headers - Column A = Key, Column B = Value
-      const data = await CsvLoader.load(url, { header: true, skipEmptyLines: true, delimiter: ',' });
-      
-      if (!data || data.length === 0) {
-        console.warn('No next outing index received, using default course');
+
+      const res = await BgsData.getConfigKvRows();
+      const data = res.rows || [];
+      if (!data.length) {
+        console.warn('No config rows for next outing, using default course');
         return;
       }
-      
-      // Find the row where Key column (Column A) is "NextOuting"
+
       const nextOutingRow = data.find(row => {
-        const key = row['Key'] || row['key'] || row[Object.keys(row)[0]];
+        const key = row['Key'] || row['key'] || '';
         return key && key.toString().trim().toLowerCase() === 'nextouting';
       });
       
@@ -303,13 +299,13 @@ const ScorecardPage = {
    */
   loadPlayersFromConfig: async function() {
     try {
-      const url = SheetsConfig.getSheetUrl('config');
-      if (!url) {
-        console.warn('Config sheet URL not configured, player list will be empty');
+      if (typeof BgsData === 'undefined' || !AppConfig.apiUrl) {
+        console.warn('bgs-api not configured, player list will be empty');
         return;
       }
-      const data = await CsvLoader.load(url, { header: true, skipEmptyLines: true, delimiter: ',' });
-      if (!data || data.length === 0) return;
+      const res = await BgsData.getConfigKvRows();
+      const data = res.rows || [];
+      if (!data.length) return;
 
       const names = new Set();
       data.forEach(row => {

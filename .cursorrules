@@ -7,8 +7,8 @@
 
 ## JavaScript Module Architecture
 - We use a modular, component-based approach for JavaScript.
-- **Configuration**: Located in `/assets/js/config/` (e.g., `sheets-config.js`).
-- **Utilities**: Located in `/assets/js/utils/` (e.g., `csv-loader.js`, `formatters.js`).
+- **Configuration**: Located in `/assets/js/config/` (e.g., `app-config.js` for `AppConfig.apiUrl` → Supabase `bgs-api`).
+- **Utilities**: Located in `/assets/js/utils/` (e.g., `bgs-data.js`, `api-client.js`, `formatters.js`).
 - **Components**: Reusable JavaScript components in `/assets/js/components/` (e.g., `knockout-renderer.js`, `league-standings.js`).
 - **Pages**: Page-specific modules in `/assets/js/pages/` (e.g., `index.js`, `fixtures.js`).
 - **Entry Point**: Main router in `/assets/js/main.js`.
@@ -21,7 +21,7 @@
    - Update reusable components in `/assets/js/components/` for shared UI logic
    - Update page-specific modules in `/assets/js/pages/` for page logic
    - Never duplicate code - extract common patterns to utilities/components
-3. **Google Sheets Configuration**: To change the Google Sheet, only update `/assets/js/config/sheets-config.js` - this is the single source of truth.
+3. **Backend configuration**: Set the deployed Edge Function URL in `/assets/js/config/app-config.js` (`AppConfig.apiUrl`). Data lives in Supabase schema `bgs`; optional sheet→DB import via `scripts/migrate-sheets-to-supabase.mjs`.
 4. **Script Loading Order**: Scripts must be loaded in this order: config → utils → components → pages → main.js
 5. **Relative Paths**: Always use relative paths (e.g., `assets/css/style.css`, not `/assets/css/style.css`).
 6. **No absolute URLs**: Never include `http://localhost` or drive letters like `C:/Users/`.

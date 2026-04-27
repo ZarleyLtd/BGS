@@ -7,9 +7,11 @@ This directory contains a modular, component-based JavaScript architecture for t
 ```
 assets/js/
 ├── config/
-│   └── sheets-config.js       # Google Sheets configuration (single source of truth)
+│   └── app-config.js          # AppConfig.apiUrl → Supabase bgs-api Edge Function
 ├── utils/
-│   ├── csv-loader.js          # CSV loading utility (PapaParse wrapper)
+│   ├── bgs-data.js            # GET helpers for bgs-api (fixtures, handicaps, etc.)
+│   ├── api-client.js          # POST/GET to bgs-api (scores)
+│   ├── csv-loader.js          # CSV loading utility (PapaParse wrapper; optional legacy)
 │   ├── formatters.js          # Data formatting helpers
 │   └── image-loader.js        # Image loading utility
 ├── components/
@@ -26,25 +28,18 @@ assets/js/
 └── main.js                    # Main entry point & page router
 ```
 
-## How to Change Google Sheet
+## Backend configuration
 
-1. Open `config/sheets-config.js`
-2. Update `baseSheetId` with your new Google Sheet ID
-3. Update `sheetTabs` object with the correct gid values for each tab
-4. That's it! All pages will automatically use the new sheet.
-
-### Finding Sheet IDs
-
-- **Sheet ID**: Found between `/d/e/` and `/pub` in the published URL
-- **Tab ID (gid)**: Found in the `gid=` parameter of the published URL
+1. Deploy `bgs-api` (see `docs/SUPABASE_CUTOVER_RUNBOOK.md`).
+2. Set `AppConfig.apiUrl` in `config/app-config.js` to your function URL.
+3. Optional: import sheet data with `scripts/migrate-sheets-to-supabase.mjs`.
 
 ## Script Loading Order (in HTML)
 
 Scripts must be loaded in this order:
 
-1. PapaParse library (external CDN)
-2. Configuration (`config/sheets-config.js`)
-3. Utilities (`utils/*.js`)
+1. Configuration (`config/app-config.js`, then other config)
+2. Utilities (`utils/api-client.js`, `utils/bgs-data.js`, …)
 4. Components (`components/*.js`)
 5. Page modules (`pages/*.js`)
 6. Main entry point (`main.js`)

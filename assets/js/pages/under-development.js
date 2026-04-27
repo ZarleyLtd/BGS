@@ -9,13 +9,12 @@ const UnderDevelopmentPage = {
     if (!hasLeagueContainers) return;
     
     try {
-      const url = SheetsConfig.getSheetUrl('leagues');
-      if (!url) {
-        console.error('Invalid leagues sheet URL');
+      if (typeof BgsData === 'undefined' || !AppConfig.apiUrl) {
+        console.error('BgsData / AppConfig.apiUrl not configured');
         return;
       }
-      
-      const data = await CsvLoader.load(url, { skipEmptyLines: true });
+      const res = await BgsData.getLeagueCells();
+      const data = res.data || [];
       
       const { leagueOne, leagueTwo } = LeagueStandings.processData(data);
       

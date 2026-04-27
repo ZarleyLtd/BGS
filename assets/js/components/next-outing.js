@@ -15,30 +15,23 @@ const NextOuting = {
     }
     
     try {
-      const url = SheetsConfig.getSheetUrl('nextOuting');
-      if (!url) {
-        console.error('Invalid next outing sheet URL');
+      if (typeof BgsData === 'undefined' || !AppConfig.apiUrl) {
+        console.error('BgsData / AppConfig.apiUrl not configured');
         this.renderFallback(container);
         return;
       }
-      
-      console.log('Loading next outing index from:', url);
-      
-      // Load CSV with headers - Column A = Key, Column B = CSV data
-      const data = await CsvLoader.load(url, { header: true, skipEmptyLines: true, delimiter: ',' });
-      
-      console.log('Next outing data loaded:', data);
-      console.log('Sample row structure:', data[0]);
-      
+
+      const res = await BgsData.getConfigKvRows();
+      const data = res.rows || [];
+
       if (!data || data.length === 0) {
-        console.warn('No data received from sheet');
+        console.warn('No config rows from API');
         this.renderFallback(container);
         return;
       }
-      
-      // Find the row where Key column (Column A) is "NextOuting"
+
       const nextOutingRow = data.find(row => {
-        const key = row['Key'] || row['key'] || row[Object.keys(row)[0]];
+        const key = row['Key'] || row['key'] || '';
         return key && key.toString().trim().toLowerCase() === 'nextouting';
       });
       

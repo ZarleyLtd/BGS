@@ -6,13 +6,12 @@ const HandicapsPage = {
     if (!table) return;
     
     try {
-      const url = SheetsConfig.getSheetUrl('handicaps');
-      if (!url) {
-        console.error('Invalid handicaps sheet URL');
+      if (typeof BgsData === 'undefined' || !AppConfig.apiUrl) {
+        console.error('BgsData / AppConfig.apiUrl not configured');
         return;
       }
-      
-      const data = await CsvLoader.load(url);
+      const res = await BgsData.getHandicaps();
+      const data = res.handicaps || [];
       
       // Filter valid rows
       const rows = data.filter(r => 

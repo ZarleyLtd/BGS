@@ -1,0 +1,10 @@
+# Link to your Supabase project (e.g. project ref for "Apps" DB).
+# Run: supabase link --project-ref <ref>
+
+project_id = "apps"
+
+[api]
+enabled = true
+
+[functions.bgs-api]
+verify_jwt = false

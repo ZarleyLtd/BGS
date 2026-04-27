@@ -10,11 +10,8 @@ const LeaderboardPage = {
       // If this fails, the page still renders but par/index may show '-' and P3s may be disabled.
       const courseParMap = {};
       try {
-        const coursesUrl = SheetsConfig && typeof SheetsConfig.getSheetUrl === 'function'
-          ? SheetsConfig.getSheetUrl('courses')
-          : null;
-        if (coursesUrl) {
-          const loadedCourses = await CoursesLoader.load(coursesUrl);
+        if (typeof AppConfig !== 'undefined' && AppConfig.apiUrl && typeof CoursesLoader.loadFromApi === 'function') {
+          const loadedCourses = await CoursesLoader.loadFromApi();
           if (loadedCourses && typeof loadedCourses === 'object') {
             for (const courseName of Object.keys(loadedCourses)) {
               const c = loadedCourses[courseName];

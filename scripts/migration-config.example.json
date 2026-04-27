@@ -1,0 +1,10 @@
+{
+  "fixturesCsvUrl": "https://docs.google.com/spreadsheets/d/e/XXXX/pub?gid=YYYY&single=true&output=csv",
+  "handicapsCsvUrl": "",
+  "leaguesCsvUrl": "",
+  "editorNotesCsvUrl": "",
+  "configCoursesCsvUrl": "",
+  "scoresCsvPath": "",
+  "scoresCsvUrl": "",
+  "legacyApiUrl": ""
+}

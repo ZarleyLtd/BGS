@@ -14,13 +14,12 @@ const FixturesPage = {
     if (!container) return;
     
     try {
-      const url = SheetsConfig.getSheetUrl('fixtures');
-      if (!url) {
-        container.innerHTML = '<p><em>Error: Invalid sheet configuration.</em></p>';
+      if (typeof BgsData === 'undefined' || !AppConfig.apiUrl) {
+        container.innerHTML = '<p><em>Error: API not configured.</em></p>';
         return;
       }
-      
-      const data = await CsvLoader.load(url);
+      const res = await BgsData.getFixtures();
+      const data = res.fixtures || [];
       
       // Filter to upcoming fixtures (no result)
       const upcoming = data.filter(r =>

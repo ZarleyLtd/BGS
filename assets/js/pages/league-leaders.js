@@ -10,29 +10,30 @@ const LeagueLeadersPlaceholder = {
     if (!hasPlaceholders) return;
     
     try {
-      const url = SheetsConfig.getSheetUrl('leagues');
-      if (!url) {
-        console.error('Invalid leagues sheet URL');
+      if (typeof BgsData === 'undefined' || !AppConfig.apiUrl) {
+        console.error('BgsData / AppConfig.apiUrl not configured');
         return;
       }
-      
-      const data = await CsvLoader.load(url, { skipEmptyLines: true });
-      const dataRows = data.slice(3); // skip header rows
+      const res = await BgsData.getLeagueCells();
+      const grid = res.data || [];
+      const dataRows = grid.slice(3); // skip header rows
       
       const leagueA = [];
       const leagueB = [];
       
       dataRows.forEach(row => {
-        if (row[0] && row[0].trim()) {
+        const c0 = row[0] != null ? String(row[0]).trim() : '';
+        const c7 = row[7] != null ? String(row[7]).trim() : '';
+        if (c0) {
           leagueA.push({
-            name: row[0].trim(),
+            name: c0,
             Pts: Formatters.toInt(row[5], 0),
             pm: Formatters.toInt(row[4], 0)
           });
         }
-        if (row[7] && row[7].trim()) {
+        if (c7) {
           leagueB.push({
-            name: row[7].trim(),
+            name: c7,
             Pts: Formatters.toInt(row[12], 0),
             pm: Formatters.toInt(row[11], 0)
           });

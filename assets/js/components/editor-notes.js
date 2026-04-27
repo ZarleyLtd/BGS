@@ -13,19 +13,15 @@ const EditorNotes = {
     }
     
     try {
-      const url = SheetsConfig.getSheetUrl('editorNotes');
-      if (!url) {
-        console.error('Invalid editor notes sheet URL');
-        container.innerHTML = '<p><em>Editor notes will appear here once configured.</em></p>';
+      if (typeof BgsData === 'undefined' || !AppConfig.apiUrl) {
+        console.error('BgsData / AppConfig.apiUrl not configured');
+        container.innerHTML = '<p><em>Editor notes will appear here once the API is configured.</em></p>';
         return;
       }
-      
-      console.log('Loading editor notes from:', url);
-      
-      // Don't skip empty lines - we need them for spacing
-      // Explicitly set delimiter to comma to avoid PapaParse warning
-      const data = await CsvLoader.load(url, { header: false, skipEmptyLines: false, delimiter: ',' });
-      
+
+      const res = await BgsData.getEditorNotesRows();
+      const data = res.rows || [];
+
       console.log('Editor notes data loaded:', data);
       
       if (!data || data.length === 0) {

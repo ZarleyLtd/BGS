@@ -12,13 +12,12 @@ const IndexPage = {
     if (!hasKnockoutContainers) return;
     
     try {
-      const url = SheetsConfig.getSheetUrl('fixtures');
-      if (!url) {
-        console.error('Invalid fixtures sheet URL');
+      if (typeof BgsData === 'undefined' || !AppConfig.apiUrl) {
+        console.error('BgsData / AppConfig.apiUrl not available for fixtures');
         return;
       }
-      
-      const fixtures = await CsvLoader.load(url);
+      const res = await BgsData.getFixtures();
+      const fixtures = res.fixtures || [];
       
       const gameWeekMap = {
         'champ-semis': 'CS',

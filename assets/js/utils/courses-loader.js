@@ -3,6 +3,22 @@
 
 const CoursesLoader = {
   /**
+   * Load course defs from bgs-api (pars + indexes per course name).
+   * @returns {Promise<Object>}
+   */
+  loadFromApi: async function() {
+    if (typeof BgsData === "undefined") {
+      throw new Error("BgsData is not loaded");
+    }
+    const json = await BgsData.getCourseDefs();
+    const courses = json.courses || {};
+    if (!courses || typeof courses !== "object") {
+      throw new Error("No course data from bgs-api");
+    }
+    return courses;
+  },
+
+  /**
    * Load courses from Google Sheet and convert to scorecard format
    * @param {string} url - CSV URL from Google Sheet
    * @returns {Promise<Object>} Promise that resolves with courses object
