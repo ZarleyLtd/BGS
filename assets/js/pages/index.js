@@ -1,38 +1,21 @@
-// Home Page - Knockout Tournament Display
+// Home Page — knockout display retired (fixtures no longer loaded from API).
 
 const IndexPage = {
   init: async function() {
-    const hasKnockoutContainers = 
+    const hasKnockoutContainers =
       document.getElementById('champ-semis') ||
       document.getElementById('champ-final') ||
       document.getElementById('plate-qf') ||
       document.getElementById('plate-sf') ||
       document.getElementById('plate-final');
-    
+
     if (!hasKnockoutContainers) return;
-    
-    try {
-      if (typeof BgsData === 'undefined' || !AppConfig.apiUrl) {
-        console.error('BgsData / AppConfig.apiUrl not available for fixtures');
-        return;
-      }
-      const res = await BgsData.getFixtures();
-      const fixtures = res.fixtures || [];
-      
-      const gameWeekMap = {
-        'champ-semis': 'CS',
-        'champ-final': 'CF',
-        'plate-qf': 'PQ',
-        'plate-sf': 'PS',
-        'plate-final': 'PF'
-      };
-      
-      Object.entries(gameWeekMap).forEach(([containerId, code]) => {
-        const matches = KnockoutRenderer.filterByGameWeek(fixtures, code);
-        KnockoutRenderer.render(containerId, matches);
-      });
-    } catch (error) {
-      console.error('Failed to load knockout data:', error);
-    }
+
+    const msg =
+      '<p class="loading" style="text-align:center;padding:1em;">Knockout draws are not published on this data source.</p>';
+    ['champ-semis', 'champ-final', 'plate-qf', 'plate-sf', 'plate-final'].forEach(function(id) {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = msg;
+    });
   }
 };

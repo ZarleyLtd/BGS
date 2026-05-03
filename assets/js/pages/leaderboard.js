@@ -36,7 +36,6 @@ const LeaderboardPage = {
         console.warn('Leaderboard: failed to load courses/par data:', e);
       }
 
-      // Load scores (scores are used as the only truth source for sorties/outings).
       const scoresRes = await ApiClient.post('loadScores', { limit: 500 });
       const scores = (scoresRes && scoresRes.scores) ? scoresRes.scores : [];
 
@@ -45,17 +44,44 @@ const LeaderboardPage = {
         return;
       }
 
-      // Force settings requested by the plan.
-      const overallStatus = 'O10';
-      const compsStr = '18:10,F9:3,B9:3,P3s,2s';
-      const comps = this.parseComps(compsStr);
+      let outings = [];
+      let societyRow = null;
+      if (typeof BgsData !== 'undefined') {
+        try {
+          if (BgsData.getOutings) {
+            const outRes = await BgsData.getOutings();
+            outings = (outRes && outRes.outings) ? outRes.outings : [];
+          }
+        } catch (e) {
+          console.warn('Leaderboard: getOutings failed:', e);
+        }
+        try {
+          if (BgsData.getSociety) {
+            const socRes = await BgsData.getSociety();
+            societyRow = (socRes && socRes.society) ? socRes.society : null;
+          }
+        } catch (e) {
+          console.warn('Leaderboard: getSociety failed:', e);
+        }
+      }
 
-      // Derive outing order: fixed by OutingsConfig course ordering, but grouping is from score (course|date).
-      const courseOrderMap = {};
-      if (typeof OutingsConfig !== 'undefined' && OutingsConfig.OUTINGS_2026) {
-        for (let i = 0; i < OutingsConfig.OUTINGS_2026.length; i++) {
-          const oc = OutingsConfig.OUTINGS_2026[i];
-          if (oc && oc.courseName) courseOrderMap[String(oc.courseName).trim().toLowerCase()] = i + 1;
+      const societyStatus = this.safeString(societyRow && societyRow.status).toUpperCase();
+      const overallStatus = (societyStatus === 'OAP' || societyStatus === 'O10') ? societyStatus : '';
+
+      const outingOrderKeys = [];
+      const dbKeyOrder = {};
+      if (outings.length) {
+        const sorted = outings.slice().sort((a, b) => {
+          const dA = new Date(this.safeString(a.date) + (a.time ? 'T' + a.time : ''));
+          const dB = new Date(this.safeString(b.date) + (b.time ? 'T' + b.time : ''));
+          return dA - dB;
+        });
+        for (let oi = 0; oi < sorted.length; oi++) {
+          const o = sorted[oi];
+          const k = this.outingKeyFromParts(o.courseName, o.date);
+          if (!k) continue;
+          outingOrderKeys.push(k);
+          dbKeyOrder[k] = oi;
         }
       }
 
@@ -84,29 +110,28 @@ const LeaderboardPage = {
       }
 
       const outingKeysSorted = Object.keys(scoresByOuting).sort((a, b) => {
-        const [ca, da] = a.split('|');
-        const [cb, db] = b.split('|');
-        const oa = (courseOrderMap[ca] != null) ? courseOrderMap[ca] : 999;
-        const ob = (courseOrderMap[cb] != null) ? courseOrderMap[cb] : 999;
-        if (oa !== ob) return oa - ob;
-        // date ascending
-        const dA = new Date(da + 'T00:00:00');
-        const dB = new Date(db + 'T00:00:00');
+        const ia = dbKeyOrder[a];
+        const ib = dbKeyOrder[b];
+        if (ia !== undefined && ib !== undefined) return ia - ib;
+        if (ia !== undefined) return -1;
+        if (ib !== undefined) return 1;
+        const [, da] = a.split('|');
+        const [, db] = b.split('|');
+        const dA = new Date((da || '').trim() + 'T00:00:00');
+        const dB = new Date((db || '').trim() + 'T00:00:00');
         return dA - dB;
       });
 
-      // O10 overall requires positions per outing and points assignment.
       const htmlParts = [];
 
-      if (overallStatus === 'O10') {
-        const overallSubtitle = '1st to 10th points over all outings';
-        const { rankedOverallLeaders, playerTotals } = this.buildO10Overall({
-          overallStatus,
-          comps,
-          outingKeysSorted,
-          scoresByOuting,
-          outingMeta
-        });
+      if (overallStatus === 'O10' || overallStatus === 'OAP') {
+        const overallSubtitle = overallStatus === 'O10'
+          ? '1st to 10th points over all outings'
+          : 'Total points over all outings';
+        const scheduleKeys = outingOrderKeys.length ? outingOrderKeys : outingKeysSorted;
+        const rankedOverallLeaders = overallStatus === 'O10'
+          ? this.buildO10Overall({ outingOrderKeys: scheduleKeys, scoresByOuting, outingMeta }).rankedOverallLeaders
+          : this.buildOapOverall({ outingOrderKeys: scheduleKeys, scoresByOuting, outingMeta, scores }).rankedOverallLeaders;
 
         htmlParts.push('<div class="lb-section lb-section--overall">');
         htmlParts.push('<h2 class="lb-section-title">Overall Leaders</h2>');
@@ -182,6 +207,17 @@ const LeaderboardPage = {
         const courseData = this.getCourseDataForKey(courseParMap, parCourseKey);
         const parIndexPairs = courseData ? courseData.parIndexPairs : [];
         const par3Indices = courseData ? courseData.par3Indices : [];
+
+        const firstScoreDate = outingDateStr || (outingScores[0] && this.safeString(outingScores[0].date)) || '';
+        const scoreDates = outingScores.map(s => s && s.date);
+        let compsStr = this.getCompsForScores(
+          outings,
+          oKey.split('|')[0] || courseNameDisplay,
+          outingDateStr || firstScoreDate,
+          scoreDates
+        );
+        if (!this.safeString(compsStr)) compsStr = '18:10';
+        const comps = this.parseComps(compsStr);
 
         const topNCount = comps.topN;
         const showF9 = comps.showF9;
@@ -694,6 +730,49 @@ const LeaderboardPage = {
     return String(v).trim();
   },
 
+  /** Match theGolfApp `leaderboard-shared.getCompsForScores`: resolve comps string for a score batch. */
+  outingKeyFromParts: function(course, date) {
+    const c = this.safeString(course).toLowerCase();
+    const d = this.safeString(date).trim();
+    if (!c || !d) return '';
+    return c + '|' + d;
+  },
+
+  getCompsForScores: function(outings, courseName, dateStr, scoreDates) {
+    const cn = this.safeString(courseName).toLowerCase();
+    const dt = this.safeString(dateStr).trim();
+    if (!outings || !outings.length) return '';
+    for (let i = 0; i < outings.length; i++) {
+      const o = outings[i];
+      if (this.safeString(o.courseName).toLowerCase() === cn && this.safeString(o.date).trim() === dt) {
+        return this.safeString(o.comps);
+      }
+    }
+    const byCourse = [];
+    for (let j = 0; j < outings.length; j++) {
+      const o2 = outings[j];
+      if (this.safeString(o2.courseName).toLowerCase() === cn) byCourse.push(o2);
+    }
+    if (byCourse.length === 0) return '';
+    if (byCourse.length === 1) return this.safeString(byCourse[0].comps);
+    const scoreDateCounts = {};
+    const dates = scoreDates || [];
+    for (let k = 0; k < dates.length; k++) {
+      const d = this.safeString(dates[k]).trim();
+      scoreDateCounts[d] = (scoreDateCounts[d] || 0) + 1;
+    }
+    let best = byCourse[0];
+    let bestCount = scoreDateCounts[this.safeString(best.date).trim()] || 0;
+    for (let m = 1; m < byCourse.length; m++) {
+      const cnt = scoreDateCounts[this.safeString(byCourse[m].date).trim()] || 0;
+      if (cnt > bestCount) {
+        best = byCourse[m];
+        bestCount = cnt;
+      }
+    }
+    return this.safeString(best.comps);
+  },
+
   // UI formatting: sometimes values arrive URL-encoded (e.g. "Corballis+Links").
   // Replace "+" with spaces for display only.
   displayText: function(v) {
@@ -1011,16 +1090,130 @@ const LeaderboardPage = {
     return 'Triple+';
   },
 
+  // OAP overall: sum of Stableford points across outings (best card per player per outing).
+  buildOapOverall: function({ outingOrderKeys, scoresByOuting, outingMeta, scores }) {
+    const byKeyPlayer = {};
+    for (let i = 0; i < scores.length; i++) {
+      const sc = scores[i];
+      const course = this.safeString(sc && sc.course);
+      const date = this.safeString(sc && sc.date);
+      const name = this.safeString(sc && sc.playerName).trim();
+      if (!course || !date || !name) continue;
+      const key = this.outingKeyFromParts(course, date);
+      const pkey = name.toLowerCase();
+      const pts = parseFloat(sc.totalPoints) || 0;
+      const id = key + '\0' + pkey;
+      if (!byKeyPlayer[id] || (parseFloat(byKeyPlayer[id].sc.totalPoints) || 0) < pts) {
+        byKeyPlayer[id] = { key, pkey, sc };
+      }
+    }
+
+    const playerTotals = {};
+    for (const id in byKeyPlayer) {
+      const { key, pkey, sc } = byKeyPlayer[id];
+      const pts = parseFloat(sc.totalPoints) || 0;
+      if (!playerTotals[pkey]) {
+        playerTotals[pkey] = {
+          totalPoints: 0,
+          hcp: sc.handicap,
+          pointsByOuting: {},
+          nameDisplay: this.safeString(sc.playerName)
+        };
+      }
+      playerTotals[pkey].pointsByOuting[key] = pts;
+    }
+    for (const pk in playerTotals) {
+      let sum = 0;
+      const po = playerTotals[pk].pointsByOuting;
+      for (const k in po) sum += parseFloat(po[k]) || 0;
+      playerTotals[pk].totalPoints = sum;
+    }
+
+    const outingPositions = {};
+    for (let op = 0; op < outingOrderKeys.length; op++) {
+      const oKeyOp = outingOrderKeys[op];
+      const rawOp = scoresByOuting[oKeyOp] || [];
+      const byPlayerOp = {};
+      for (let ro = 0; ro < rawOp.length; ro++) {
+        const rscOp = rawOp[ro];
+        const pkeyOp = this.safeString(rscOp.playerName).toLowerCase();
+        if (!pkeyOp) continue;
+        const rptsOp = parseFloat(rscOp.totalPoints) || 0;
+        if (!byPlayerOp[pkeyOp] || (parseFloat(byPlayerOp[pkeyOp].totalPoints) || 0) < rptsOp) {
+          byPlayerOp[pkeyOp] = rscOp;
+        }
+      }
+      const sortedOp = [];
+      for (const bpOp in byPlayerOp) sortedOp.push(byPlayerOp[bpOp]);
+      sortedOp.sort(this.compareCountbackOverall.bind(this));
+      outingPositions[oKeyOp] = {};
+      let posOp = 0;
+      let runOp = 0;
+      while (posOp < sortedOp.length) {
+        const groupOp = [sortedOp[posOp]];
+        while (
+          posOp + 1 < sortedOp.length &&
+          this.compareCountbackOverall(sortedOp[posOp], sortedOp[posOp + 1]) === 0
+        ) {
+          posOp++;
+          groupOp.push(sortedOp[posOp]);
+        }
+        const posNum = runOp + 1;
+        for (let go = 0; go < groupOp.length; go++) {
+          const pkOp = this.safeString(groupOp[go].playerName).toLowerCase();
+          if (pkOp) {
+            outingPositions[oKeyOp][pkOp] = {
+              position: posNum,
+              points: parseFloat(groupOp[go].totalPoints) || 0
+            };
+          }
+        }
+        runOp += groupOp.length;
+        posOp++;
+      }
+    }
+
+    const overallList = [];
+    for (const nameKey in playerTotals) {
+      const rec = playerTotals[nameKey];
+      const orderedOutingDetails = [];
+      for (let k = 0; k < outingOrderKeys.length; k++) {
+        const oKeyK = outingOrderKeys[k];
+        if (rec.pointsByOuting[oKeyK] == null) continue;
+        const ptsK = rec.pointsByOuting[oKeyK];
+        const meta = outingMeta[oKeyK] || {};
+        const nm = (meta.courseNameDisplay || oKeyK.split('|')[0] || '').trim();
+        const posInfo = outingPositions[oKeyK] && outingPositions[oKeyK][nameKey];
+        orderedOutingDetails.push({
+          outingName: this.displayText(nm),
+          points: ptsK,
+          position: posInfo ? posInfo.position : null,
+          stablefordPts: ptsK
+        });
+      }
+      overallList.push({
+        name: rec.nameDisplay || nameKey,
+        totalPoints: rec.totalPoints,
+        hcp: rec.hcp,
+        orderedOutingDetails
+      });
+    }
+
+    const filtered = overallList.filter(p => (parseFloat(p.totalPoints) || 0) > 0);
+    const rankedOverallLeaders = this.rankOverallByPoints(filtered);
+    return { rankedOverallLeaders, playerTotals };
+  },
+
   // O10 overall: 1st=10pts, 2nd=9,... 10th=1 per outing. Ties get same points.
-  buildO10Overall: function({ outingKeysSorted, scoresByOuting, outingMeta }) {
+  buildO10Overall: function({ outingOrderKeys, scoresByOuting, outingMeta }) {
     const pointsForPos = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
     const positionPointsByPlayer = {};
     const positionDetailsByPlayer = {};
     const playerTotals = {};
 
     // Build playerTotals for handicaps and display names (across O10 assignments).
-    for (let si = 0; si < outingKeysSorted.length; si++) {
-      const oKey = outingKeysSorted[si];
+    for (let si = 0; si < outingOrderKeys.length; si++) {
+      const oKey = outingOrderKeys[si];
       const rawScores = scoresByOuting[oKey] || [];
       const byPlayer = {};
 
@@ -1046,8 +1239,8 @@ const LeaderboardPage = {
       }
     }
 
-    for (let okIdx = 0; okIdx < outingKeysSorted.length; okIdx++) {
-      const oKey = outingKeysSorted[okIdx];
+    for (let okIdx = 0; okIdx < outingOrderKeys.length; okIdx++) {
+      const oKey = outingOrderKeys[okIdx];
       const rawScores = scoresByOuting[oKey] || [];
 
       const byPlayer = {};

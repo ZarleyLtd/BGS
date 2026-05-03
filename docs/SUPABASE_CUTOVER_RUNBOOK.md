@@ -1,11 +1,21 @@
 # BGS Supabase cutover runbook
 
-## Prerequisites (do in this order)
+## Current production data path (theGolfApp / botanic)
+
+The public BGS site uses Edge Function **`bgs-api`**, which targets schema **`thegolfapp`** and society id **`botanic`** (same tables as the Golf App). Ensure:
+
+1. Schema **`thegolfapp`** exists and **Project Settings → API → Exposed schemas** includes **`thegolfapp`**.
+2. Row **`societies.society_id = 'botanic'`** exists, with `players`, `outings`, and `courses` (including `par_indx`) populated as in the Golf App.
+3. **Deploy** `bgs-api`: `supabase functions deploy bgs-api --no-verify-jwt`
+4. **Secrets**: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
+
+See [`SUPABASE_API_CONTRACT.md`](SUPABASE_API_CONTRACT.md) for actions and behavior (e.g. `saveScore` requires a matching outing).
+
+## Legacy: isolated `bgs` schema (optional / historical)
 
 1. **Apply migrations** so schema `bgs` and tables exist: `supabase db push`, or run the SQL files under `supabase/migrations/` in the SQL editor (in filename order).
-2. **Expose `bgs` to the API** (only after the schema exists): **Project Settings → API → Exposed schemas** → add **`bgs`**.
-3. **Deploy Edge Function**: `supabase functions deploy bgs-api --no-verify-jwt`
-4. **Function secrets**: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (Dashboard → Edge Functions → bgs-api → Secrets).
+2. **Expose `bgs` to the API** (only if you still use that schema): **Project Settings → API → Exposed schemas** → add **`bgs`**.
+3. The **`scripts/migrate-sheets-to-supabase.mjs`** pipeline imports into schema `bgs` by default; it is **legacy** relative to the theGolfApp-backed site unless you repoint `SUPABASE_SCHEMA`.
 
 ## Data import (optional)
 
@@ -24,8 +34,8 @@
 
 ## Smoke tests
 
-- Home: editor notes, next outing (if rows exist in `editor_notes`, `config_kv`).
-- Scorecard: courses + players from API; save / load / delete score.
+- Home: editor notes (`societies.captains_notes`), next outing (`outings` + `courses`).
+- Scorecard: courses + players from API; save / load / delete score (outing must exist for date/course).
 - Leaderboard: loads scores + course defs.
 
 ## Rollback

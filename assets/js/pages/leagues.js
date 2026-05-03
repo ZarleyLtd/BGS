@@ -1,30 +1,12 @@
-// Leagues Page - League Standings
+// Leagues Page — league grid retired.
 
 const LeaguesPage = {
   init: async function() {
-    const hasLeagueContainers = 
-      document.getElementById('league-one') || 
-      document.getElementById('league-two');
-    
-    if (!hasLeagueContainers) return;
-    
-    try {
-      if (typeof BgsData === 'undefined' || !AppConfig.apiUrl) {
-        console.error('BgsData / AppConfig.apiUrl not configured');
-        return;
-      }
-      const res = await BgsData.getLeagueCells();
-      const data = res.data || [];
-      
-      const { leagueOne, leagueTwo } = LeagueStandings.processData(data);
-      
-      const sortedOne = LeagueStandings.sort(leagueOne);
-      const sortedTwo = LeagueStandings.sort(leagueTwo);
-      
-      LeagueStandings.render('league-one', sortedOne);
-      LeagueStandings.render('league-two', sortedTwo);
-    } catch (error) {
-      console.error('Failed to load league standings:', error);
-    }
+    const msg =
+      '<p class="loading" style="text-align:center;padding:1em;">League standings are not available on this data source.</p>';
+    ['league-one', 'league-two'].forEach(function(id) {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = msg;
+    });
   }
 };

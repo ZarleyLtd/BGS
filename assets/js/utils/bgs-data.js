@@ -1,4 +1,4 @@
-// Read helpers for bgs-api (public GET actions).
+// Read helpers for bgs-api (public GET actions). Backend uses Supabase `thegolfapp` schema, society botanic.
 
 const BgsData = {
   /**
@@ -31,19 +31,6 @@ const BgsData = {
     return json;
   },
 
-  getFixtures: function() {
-    return this.fetchJson("getFixtures");
-  },
-
-  getHandicaps: function() {
-    return this.fetchJson("getHandicaps");
-  },
-
-  /** @returns {Promise<{ success: boolean, data: unknown[][] }>} */
-  getLeagueCells: function() {
-    return this.fetchJson("getLeagueCells");
-  },
-
   /** @returns {Promise<{ success: boolean, rows: unknown[][] }>} */
   getEditorNotesRows: function() {
     return this.fetchJson("getEditorNotesRows");
@@ -58,10 +45,42 @@ const BgsData = {
   },
 
   /**
-   * Key/value rows as { Key, Value } (matches published CSV shape).
-   * @returns {Promise<{ success: boolean, rows: Array<{Key: string, Value: string}> }>}
+   * Players for society botanic (theGolfApp `players` table).
+   * @returns {Promise<{ success: boolean, players: Array<{ playerId: string, playerName: string }> }>}
    */
-  getConfigKvRows: function() {
-    return this.fetchJson("getConfigKvRows");
+  getSocietyPlayers: function() {
+    return this.fetchJson("getSocietyPlayers");
+  },
+
+  /**
+   * Next upcoming outing (date >= today) with course URLs from `courses`.
+   * @returns {Promise<{ success: boolean, outing: Object | null }>}
+   */
+  getNextOuting: function() {
+    return this.fetchJson("getNextOuting");
+  },
+
+  /**
+   * Society row for botanic (`status` drives leaderboard overall: O10 / OAP when set).
+   * @returns {Promise<{ success: boolean, society: Object }>}
+   */
+  getSociety: function() {
+    return this.fetchJson("getSociety");
+  },
+
+  /**
+   * All scheduled outings (date, time, course, comps).
+   * @returns {Promise<{ success: boolean, outings: Array<{ outingId, date, time, courseName, comps }> }>}
+   */
+  getOutings: function() {
+    return this.fetchJson("getOutings");
+  },
+
+  /**
+   * All course rows (URLs, images, par_indx) for outings UI.
+   * @returns {Promise<{ success: boolean, courses: Object[] }>}
+   */
+  getCourses: function() {
+    return this.fetchJson("getCourses");
   },
 };

@@ -21,7 +21,7 @@
    - Update reusable components in `/assets/js/components/` for shared UI logic
    - Update page-specific modules in `/assets/js/pages/` for page logic
    - Never duplicate code - extract common patterns to utilities/components
-3. **Backend configuration**: Set the deployed Edge Function URL in `/assets/js/config/app-config.js` (`AppConfig.apiUrl`). Data lives in Supabase schema `bgs`; optional sheet→DB import via `scripts/migrate-sheets-to-supabase.mjs`.
+3. **Backend configuration**: Set the deployed Edge Function URL in `/assets/js/config/app-config.js` (`AppConfig.apiUrl`). The `bgs-api` Edge Function reads/writes Supabase schema **`thegolfapp`** for society **`botanic`** (shared with the Golf App). Legacy sheet→`bgs` import via `scripts/migrate-sheets-to-supabase.mjs` is deprecated for production cutover unless you intentionally use the old `bgs` schema.
 4. **Script Loading Order**: Scripts must be loaded in this order: config → utils → components → pages → main.js
 5. **Relative Paths**: Always use relative paths (e.g., `assets/css/style.css`, not `/assets/css/style.css`).
 6. **No absolute URLs**: Never include `http://localhost` or drive letters like `C:/Users/`.

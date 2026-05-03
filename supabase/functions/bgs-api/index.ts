@@ -1,5 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
+/** BGS public site always uses this society in the shared `thegolfapp` schema. */
+const SOCIETY_ID = "botanic";
+
 const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -21,6 +24,10 @@ function toInt(v: unknown, fallback = 0): number {
 function normalizeName(name: string): string {
   if (!name) return "";
   return name.toLowerCase().replace(/\s+/g, "");
+}
+
+function normalizeCourseKey(name: string): string {
+  return String(name || "").toLowerCase().replace(/\s+/g, "");
 }
 
 function toDateString(v: unknown): string {
@@ -55,7 +62,55 @@ function padIntArray18(arr: unknown): number[] {
   return out;
 }
 
-function mapScoreRow(row: Record<string, unknown>) {
+function generatePlayerId(): string {
+  return `p_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/** Parse `courses.par_indx`: 18 pars + 18 stroke indexes (comma-separated). Optional leading course name token if length >= 37. */
+function parseParIndx(parIndx: string): { pars: number[]; indexes: number[] } {
+  const s = String(parIndx || "").trim();
+  const parts = s.split(",").map((p) => p.trim());
+  let offset = 0;
+  if (parts.length >= 37) {
+    offset = 1;
+  }
+  const pars: number[] = [];
+  const indexes: number[] = [];
+  for (let i = 0; i < 18; i++) {
+    pars.push(toInt(parts[offset + i], 0));
+  }
+  if (parts.length - offset >= 36) {
+    for (let i = 0; i < 18; i++) {
+      indexes.push(toInt(parts[offset + 18 + i], 0));
+    }
+  } else {
+    for (let i = 0; i < 18; i++) indexes.push(0);
+  }
+  return { pars, indexes };
+}
+
+type ScoreJoinRow = {
+  outing_id: string;
+  player_id: string;
+  handicap?: number;
+  holes?: number[];
+  hole_points?: number[];
+  total_score?: number;
+  total_points?: number;
+  out_score?: number;
+  out_points?: number;
+  in_score?: number;
+  in_points?: number;
+  back6_score?: number;
+  back6_points?: number;
+  back3_score?: number;
+  back3_points?: number;
+  score_timestamp?: string;
+  outings?: { course_name?: string; outing_date?: string } | null;
+  players?: { player_name?: string } | null;
+};
+
+function mapScoreRow(row: ScoreJoinRow): Record<string, unknown> {
   const holesRaw = (row.holes as number[]) || [];
   const holes = holesRaw.map((h) => (toInt(h, 0) === 0 ? "" : toInt(h, 0)));
   const holePoints = padIntArray18(row.hole_points);
@@ -64,10 +119,12 @@ function mapScoreRow(row: Record<string, unknown>) {
   if (ts instanceof Date) timestamp = ts.toISOString();
   else if (ts) timestamp = String(ts);
 
+  const outingDate = row.outings?.outing_date;
+
   return {
-    playerName: String(row.player_name ?? ""),
-    course: String(row.course ?? ""),
-    date: toDateString(row.played_on),
+    playerName: String(row.players?.player_name ?? row.player_id ?? ""),
+    course: String(row.outings?.course_name ?? ""),
+    date: outingDate ? toDateString(outingDate) : "",
     handicap: toInt(row.handicap, 0),
     holes,
     holePoints,
@@ -85,6 +142,26 @@ function mapScoreRow(row: Record<string, unknown>) {
   };
 }
 
+function courseMatches(a: string, b: string): boolean {
+  return normalizeCourseKey(a) === normalizeCourseKey(b);
+}
+
+async function fetchScoresJoined(
+  sb: ReturnType<typeof createClient>,
+  limit: number,
+): Promise<ScoreJoinRow[]> {
+  const { data, error } = await sb
+    .from("scores")
+    .select(
+      "outing_id, player_id, handicap, holes, hole_points, total_score, total_points, out_score, out_points, in_score, in_points, back6_score, back6_points, back3_score, back3_points, score_timestamp, outings!scores_outing_fk(course_name, outing_date), players!scores_player_fk(player_name)",
+    )
+    .eq("society_id", SOCIETY_ID)
+    .order("score_timestamp", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  return (data || []) as ScoreJoinRow[];
+}
+
 async function loadScores(
   sb: ReturnType<typeof createClient>,
   args: Record<string, unknown>,
@@ -93,17 +170,15 @@ async function loadScores(
   const playerName = String(args.playerName || "").trim();
   const course = String(args.course || "").trim();
 
-  let query = sb.from("scores").select("*").order("score_timestamp", { ascending: false });
-  if (course) query = query.eq("course", course);
   const preLimit = playerName && !course ? Math.min(5000, Math.max(limit * 20, 200)) : limit;
-  query = query.limit(preLimit);
+  let rows = await fetchScoresJoined(sb, preLimit);
 
-  const { data, error } = await query;
-  if (error) throw new Error(error.message);
-  let rows = data || [];
+  if (course) {
+    rows = rows.filter((r) => courseMatches(String(r.outings?.course_name || ""), course));
+  }
   if (playerName) {
     const want = normalizeName(playerName);
-    rows = rows.filter((r: { player_name?: string }) => normalizeName(String(r.player_name || "")) === want);
+    rows = rows.filter((r) => normalizeName(String(r.players?.player_name || "")) === want);
   }
   rows = rows.slice(0, limit);
   return { success: true, scores: rows.map(mapScoreRow) };
@@ -117,14 +192,71 @@ async function checkExistingScore(
   const course = String(args.course || "").trim();
   if (!playerName || !course) return { success: true, exists: false };
 
-  const { data, error } = await sb.from("scores").select("*").eq("course", course);
-  if (error) throw new Error(error.message);
+  const rows = await fetchScoresJoined(sb, 500);
   const want = normalizeName(playerName);
-  const row = (data || []).find((r: { player_name?: string }) =>
-    normalizeName(String(r.player_name || "")) === want
+  const matching = rows.filter(
+    (r) =>
+      courseMatches(String(r.outings?.course_name || ""), course) &&
+      normalizeName(String(r.players?.player_name || "")) === want,
   );
+  const row = matching[0];
   if (!row) return { success: true, exists: false };
-  return { success: true, exists: true, score: mapScoreRow(row as Record<string, unknown>) };
+  return { success: true, exists: true, score: mapScoreRow(row) };
+}
+
+async function resolveOrCreatePlayerId(
+  sb: ReturnType<typeof createClient>,
+  playerName: string,
+): Promise<string> {
+  const want = normalizeName(playerName);
+  const { data: players, error } = await sb.from("players").select("player_id, player_name").eq(
+    "society_id",
+    SOCIETY_ID,
+  );
+  if (error) throw new Error(error.message);
+  const found = (players || []).find((p: { player_name: string }) =>
+    normalizeName(String(p.player_name || "")) === want
+  );
+  if (found) return String(found.player_id);
+
+  const playerId = generatePlayerId();
+  const now = new Date().toISOString();
+  const { error: insErr } = await sb.from("players").insert({
+    society_id: SOCIETY_ID,
+    player_id: playerId,
+    player_name: playerName,
+    handicap: 0,
+    created_at: now,
+    updated_at: now,
+  });
+  if (insErr) throw new Error(insErr.message);
+  return playerId;
+}
+
+async function resolveOutingIdForDateAndCourse(
+  sb: ReturnType<typeof createClient>,
+  playedOn: string,
+  course: string,
+): Promise<string | null> {
+  const { data: outings, error } = await sb
+    .from("outings")
+    .select("outing_id, course_name, outing_date, outing_time")
+    .eq("society_id", SOCIETY_ID)
+    .eq("outing_date", playedOn)
+    .order("outing_time", { ascending: true })
+    .order("outing_id", { ascending: true });
+  if (error) throw new Error(error.message);
+  const match = (outings || []).find((o: { course_name: string }) =>
+    courseMatches(String(o.course_name || ""), course)
+  );
+  return match ? String(match.outing_id) : null;
+}
+
+class ClientError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ClientError";
+  }
 }
 
 async function saveScore(sb: ReturnType<typeof createClient>, data: Record<string, unknown>) {
@@ -136,18 +268,28 @@ async function saveScore(sb: ReturnType<typeof createClient>, data: Record<strin
   const holes = padIntArray18(data.holes);
   const holePoints = padIntArray18(data.holePoints);
 
-  const { data: existingRows, error: exErr } = await sb.from("scores").select("*").eq("course", course);
-  if (exErr) throw new Error(exErr.message);
-  const want = normalizeName(playerName);
-  const existing = (existingRows || []).find((r: { player_name?: string }) =>
-    normalizeName(String(r.player_name || "")) === want
-  );
+  const outingId = await resolveOutingIdForDateAndCourse(sb, playedOn, course);
+  if (!outingId) {
+    throw new ClientError(
+      "No outing found for this date and course in society botanic. Create the outing in the admin first.",
+    );
+  }
 
+  const playerId = await resolveOrCreatePlayerId(sb, playerName);
   const now = new Date().toISOString();
-  const payload = {
-    player_name: playerName,
-    course,
-    played_on: playedOn,
+
+  const { data: existing, error: exErr } = await sb
+    .from("scores")
+    .select("score_timestamp")
+    .eq("society_id", SOCIETY_ID)
+    .eq("outing_id", outingId)
+    .eq("player_id", playerId)
+    .maybeSingle();
+  if (exErr) throw new Error(exErr.message);
+
+  const scoreTimestamp = existing?.score_timestamp ? String(existing.score_timestamp) : now;
+
+  const rowBody = {
     handicap: toInt(data.handicap, 0),
     holes,
     hole_points: holePoints,
@@ -161,19 +303,30 @@ async function saveScore(sb: ReturnType<typeof createClient>, data: Record<strin
     back6_points: toInt(data.back6Points, 0),
     back3_score: toInt(data.back3Score, 0),
     back3_points: toInt(data.back3Points, 0),
-    score_timestamp: existing?.score_timestamp ? String(existing.score_timestamp) : now,
+    score_timestamp: scoreTimestamp,
     updated_at: now,
   };
 
-  if (existing?.id) {
-    const { error } = await sb.from("scores").update(payload).eq("id", existing.id as string);
+  if (existing) {
+    const { error } = await sb
+      .from("scores")
+      .update(rowBody)
+      .eq("society_id", SOCIETY_ID)
+      .eq("outing_id", outingId)
+      .eq("player_id", playerId);
     if (error) throw new Error(error.message);
-    return { success: true, message: "Score updated successfully", timestamp: payload.score_timestamp };
+    return { success: true, message: "Score updated successfully", timestamp: scoreTimestamp };
   }
-  const insertRow = { ...payload, score_timestamp: now, created_at: now };
-  const { error } = await sb.from("scores").insert(insertRow);
+
+  const { error } = await sb.from("scores").insert({
+    society_id: SOCIETY_ID,
+    outing_id: outingId,
+    player_id: playerId,
+    ...rowBody,
+    created_at: now,
+  });
   if (error) throw new Error(error.message);
-  return { success: true, message: "Score saved successfully", timestamp: now };
+  return { success: true, message: "Score saved successfully", timestamp: scoreTimestamp };
 }
 
 async function deleteScore(sb: ReturnType<typeof createClient>, data: Record<string, unknown>) {
@@ -182,90 +335,211 @@ async function deleteScore(sb: ReturnType<typeof createClient>, data: Record<str
   const searchDate = normalizeDateForMatch(data.date || "");
   const searchTimestamp = normalizeTimestampForMatch(data.timestamp || "");
 
-  const { data: rows, error } = await sb.from("scores").select("*").eq("course", searchCourse);
-  if (error) throw new Error(error.message);
-
+  const rows = await fetchScoresJoined(sb, 2000);
   const want = normalizeName(searchPlayerName);
-  const row = (rows || []).find((r: { player_name?: string }) =>
-    normalizeName(String(r.player_name || "")) === want
+  const candidates = rows.filter(
+    (r) =>
+      courseMatches(String(r.outings?.course_name || ""), searchCourse) &&
+      normalizeName(String(r.players?.player_name || "")) === want,
   );
+  const row = candidates.find((r) => {
+    const rowDate = normalizeDateForMatch(r.outings?.outing_date);
+    const rowTs = normalizeTimestampForMatch(r.score_timestamp);
+    return rowDate === searchDate && rowTs === searchTimestamp;
+  });
   if (!row) return { success: false, error: "Score not found" };
 
-  const rowDate = normalizeDateForMatch((row as { played_on?: string }).played_on);
-  const rowTs = normalizeTimestampForMatch((row as { score_timestamp?: string }).score_timestamp);
-  if (rowDate !== searchDate || rowTs !== searchTimestamp) {
-    return { success: false, error: "Score not found" };
-  }
-
-  const { error: delErr } = await sb.from("scores").delete().eq("id", (row as { id: string }).id);
+  const { error: delErr } = await sb
+    .from("scores")
+    .delete()
+    .eq("society_id", SOCIETY_ID)
+    .eq("outing_id", row.outing_id)
+    .eq("player_id", row.player_id);
   if (delErr) throw new Error(delErr.message);
   return { success: true, message: "Score deleted successfully" };
 }
 
-async function getFixtures(sb: ReturnType<typeof createClient>) {
-  const { data, error } = await sb.from("fixtures").select("sheet_row").order("sort_order", { ascending: true }).order("id", { ascending: true });
+async function getSociety(sb: ReturnType<typeof createClient>) {
+  const { data, error } = await sb
+    .from("societies")
+    .select("*")
+    .eq("society_id", SOCIETY_ID)
+    .maybeSingle();
   if (error) throw new Error(error.message);
-  const fixtures = (data || []).map((r: { sheet_row: Record<string, unknown> }) => r.sheet_row as Record<string, unknown>);
-  return { success: true, fixtures };
+  if (!data) return { success: false, error: "Society not found" };
+  return {
+    success: true,
+    society: {
+      societyId: data.society_id,
+      societyName: data.society_name,
+      contactPerson: data.contact_person,
+      numberOfPlayers: data.number_of_players,
+      numberOfOutings: data.number_of_outings,
+      status: data.status,
+      createdDate: data.created_date ? toDateString(data.created_date) : "",
+      captainsNotes: data.captains_notes || "",
+    },
+  };
 }
 
-async function getHandicaps(sb: ReturnType<typeof createClient>) {
-  const { data, error } = await sb.from("handicap_rows").select("player_name, handicap, handicap_date").order("handicap_date", { ascending: true });
+async function getOutingsList(sb: ReturnType<typeof createClient>) {
+  const { data, error } = await sb
+    .from("outings")
+    .select("*")
+    .eq("society_id", SOCIETY_ID)
+    .order("outing_date", { ascending: true })
+    .order("outing_time", { ascending: true })
+    .order("outing_id", { ascending: true });
   if (error) throw new Error(error.message);
-  const handicaps = (data || []).map((r: { player_name: string; handicap: string; handicap_date: string }) => ({
-    "Player Name": r.player_name,
-    "Handicap": r.handicap,
-    "Handicap Date": r.handicap_date ? toDateString(r.handicap_date) : "",
-  }));
-  return { success: true, handicaps };
+  return {
+    success: true,
+    outings: (data || []).map((row: Record<string, unknown>) => ({
+      outingId: row.outing_id,
+      date: toDateString(row.outing_date),
+      time: String(row.outing_time || ""),
+      courseName: String(row.course_name || ""),
+      comps: String(row.comps || ""),
+    })),
+  };
 }
 
-async function getLeagueCells(sb: ReturnType<typeof createClient>) {
-  const { data, error } = await sb.from("league_snapshot").select("cells").eq("id", 1).maybeSingle();
+async function getCoursesList(sb: ReturnType<typeof createClient>) {
+  const { data, error } = await sb.from("courses").select("*").order("course_name");
   if (error) throw new Error(error.message);
-  const cells = data?.cells ?? [];
-  return { success: true, data: cells };
+  return {
+    success: true,
+    courses: (data || []).map((row: Record<string, unknown>) => ({
+      courseName: String(row.course_name || ""),
+      parIndx: String(row.par_indx || ""),
+      courseURL: String(row.course_url || ""),
+      courseMaploc: String(row.course_maploc || ""),
+      clubName: String(row.club_name || ""),
+      courseImage: String(row.course_image || ""),
+    })),
+  };
 }
 
 async function getEditorNotesRows(sb: ReturnType<typeof createClient>) {
-  const { data, error } = await sb.from("editor_notes").select("rows").eq("id", 1).maybeSingle();
+  const { data, error } = await sb
+    .from("societies")
+    .select("captains_notes")
+    .eq("society_id", SOCIETY_ID)
+    .maybeSingle();
   if (error) throw new Error(error.message);
-  const rows = data?.rows ?? [];
+  const text = String(data?.captains_notes || "").trim();
+  if (!text) return { success: true, rows: [] as string[][] };
+  const chunks = text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+  const rows = chunks.length > 0 ? chunks.map((c) => [c]) : [[text]];
   return { success: true, rows };
 }
 
 async function getCourseDefsObject(sb: ReturnType<typeof createClient>) {
-  const { data, error } = await sb.from("course_defs").select("course_name, pars, stroke_indexes");
-  if (error) throw new Error(error.message);
-  const courses: Record<string, { pars: number[]; indexes: number[] }> = {};
-  for (const r of data || []) {
-    const row = r as { course_name: string; pars: number[]; stroke_indexes: number[] };
-    courses[row.course_name] = {
-      pars: row.pars || [],
-      indexes: row.stroke_indexes || [],
-    };
+  const { data: outings, error: oErr } = await sb
+    .from("outings")
+    .select("course_name")
+    .eq("society_id", SOCIETY_ID);
+  if (oErr) throw new Error(oErr.message);
+  const outingCourseNorm = new Set(
+    (outings || []).map((o: { course_name: string }) => normalizeCourseKey(String(o.course_name || ""))),
+  );
+
+  const { data: courses, error: cErr } = await sb.from("courses").select("course_name, par_indx");
+  if (cErr) throw new Error(cErr.message);
+
+  const coursesOut: Record<string, { pars: number[]; indexes: number[] }> = {};
+  for (const r of courses || []) {
+    const row = r as { course_name: string; par_indx: string };
+    const keyNorm = normalizeCourseKey(row.course_name);
+    if (!outingCourseNorm.has(keyNorm)) continue;
+    const { pars, indexes } = parseParIndx(row.par_indx || "");
+    coursesOut[row.course_name] = { pars, indexes };
   }
-  return { success: true, courses };
+  return { success: true, courses: coursesOut };
 }
 
-async function getConfigKvRows(sb: ReturnType<typeof createClient>) {
-  const { data, error } = await sb.from("config_kv").select("key, value");
+async function getSocietyPlayers(sb: ReturnType<typeof createClient>) {
+  const { data, error } = await sb
+    .from("players")
+    .select("player_id, player_name")
+    .eq("society_id", SOCIETY_ID)
+    .order("player_name");
   if (error) throw new Error(error.message);
-  const rows = (data || []).map((r: { key: string; value: string }) => ({
-    Key: r.key,
-    Value: r.value,
-  }));
-  return { success: true, rows };
+  return {
+    success: true,
+    players: (data || []).map((p: { player_id: string; player_name: string }) => ({
+      playerId: p.player_id,
+      playerName: p.player_name,
+    })),
+  };
+}
+
+async function getNextOuting(sb: ReturnType<typeof createClient>) {
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: outings, error: oErr } = await sb
+    .from("outings")
+    .select("outing_id, outing_date, outing_time, course_name, comps")
+    .eq("society_id", SOCIETY_ID)
+    .gte("outing_date", today)
+    .order("outing_date", { ascending: true })
+    .order("outing_time", { ascending: true })
+    .order("outing_id", { ascending: true })
+    .limit(1);
+  if (oErr) throw new Error(oErr.message);
+  const o = outings?.[0] as
+    | {
+      outing_id: string;
+      outing_date: string;
+      outing_time: string;
+      course_name: string;
+      comps: string;
+    }
+    | undefined;
+  if (!o) {
+    return {
+      success: true,
+      outing: null as Record<string, unknown> | null,
+    };
+  }
+
+  const { data: courseRow, error: cErr } = await sb
+    .from("courses")
+    .select("course_name, course_url, course_maploc, club_name, course_image")
+    .eq("course_name", o.course_name)
+    .maybeSingle();
+  if (cErr) throw new Error(cErr.message);
+  const c = courseRow as {
+    course_name: string;
+    course_url: string;
+    course_maploc: string;
+    club_name: string;
+    course_image: string;
+  } | null;
+
+  return {
+    success: true,
+    outing: {
+      outingId: o.outing_id,
+      date: toDateString(o.outing_date),
+      time: o.outing_time || "",
+      courseName: o.course_name || "",
+      comps: o.comps || "",
+      clubName: c?.club_name || "",
+      courseUrl: c?.course_url || "",
+      courseMaploc: c?.course_maploc || "",
+      courseImage: c?.course_image || "",
+    },
+  };
 }
 
 async function dispatchGet(sb: ReturnType<typeof createClient>, action: string, params: URLSearchParams) {
   const args = Object.fromEntries(params.entries());
-  if (action === "getFixtures") return await getFixtures(sb);
-  if (action === "getHandicaps") return await getHandicaps(sb);
-  if (action === "getLeagueCells") return await getLeagueCells(sb);
+  if (action === "getSociety") return await getSociety(sb);
+  if (action === "getOutings") return await getOutingsList(sb);
+  if (action === "getCourses") return await getCoursesList(sb);
   if (action === "getEditorNotesRows") return await getEditorNotesRows(sb);
   if (action === "getCourseDefs") return await getCourseDefsObject(sb);
-  if (action === "getConfigKvRows") return await getConfigKvRows(sb);
+  if (action === "getSocietyPlayers") return await getSocietyPlayers(sb);
+  if (action === "getNextOuting") return await getNextOuting(sb);
   if (action === "loadScores") return await loadScores(sb, args);
   if (action === "checkExistingScore") return await checkExistingScore(sb, args);
   return { success: false, error: `Unknown action: ${action}` };
@@ -281,6 +555,14 @@ async function dispatchPost(
   if (action === "deleteScore") return await deleteScore(sb, data);
   if (action === "loadScores") return await loadScores(sb, data);
   if (action === "checkExistingScore") return await checkExistingScore(sb, data);
+  // Read-only actions (same as GET) — supports POST clients and form-encoded `data` JSON.
+  if (action === "getSociety") return await getSociety(sb);
+  if (action === "getOutings") return await getOutingsList(sb);
+  if (action === "getCourses") return await getCoursesList(sb);
+  if (action === "getEditorNotesRows") return await getEditorNotesRows(sb);
+  if (action === "getCourseDefs") return await getCourseDefsObject(sb);
+  if (action === "getSocietyPlayers") return await getSocietyPlayers(sb);
+  if (action === "getNextOuting") return await getNextOuting(sb);
   return { success: false, error: `Unknown action: ${action}` };
 }
 
@@ -312,7 +594,7 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ success: false, error: "Missing Supabase credentials" }, 500);
   }
 
-  const sb = createClient(supabaseUrl, serviceRoleKey, { db: { schema: "bgs" } });
+  const sb = createClient(supabaseUrl, serviceRoleKey, { db: { schema: "thegolfapp" } });
 
   try {
     if (req.method === "GET") {
@@ -329,6 +611,9 @@ Deno.serve(async (req: Request) => {
     }
     return jsonResponse({ success: false, error: "Method not allowed" }, 405);
   } catch (err) {
+    if (err instanceof ClientError) {
+      return jsonResponse({ success: false, error: err.message }, 400);
+    }
     const message = err instanceof Error ? err.message : String(err);
     return jsonResponse({ success: false, error: message }, 500);
   }

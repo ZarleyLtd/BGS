@@ -226,7 +226,7 @@ const ScorecardPage = {
   },
 
   /**
-   * Load next outing index from Google Sheet and set default course
+   * Set default course from next upcoming outing (theGolfApp / botanic outings).
    */
   setDefaultCourseFromNextOuting: async function() {
     try {
@@ -235,67 +235,33 @@ const ScorecardPage = {
         return;
       }
 
-      const res = await BgsData.getConfigKvRows();
-      const data = res.rows || [];
-      if (!data.length) {
-        console.warn('No config rows for next outing, using default course');
-        return;
-      }
-
-      const nextOutingRow = data.find(row => {
-        const key = row['Key'] || row['key'] || '';
-        return key && key.toString().trim().toLowerCase() === 'nextouting';
-      });
-      
-      if (!nextOutingRow) {
-        console.warn('No "NextOuting" row found in sheet, using default course');
-        return;
-      }
-      
-      // Get the value from Column B (Value column) - it's just a number
-      const valueColumn = nextOutingRow['Value'] || nextOutingRow['value'] || nextOutingRow[Object.keys(nextOutingRow)[1]] || '';
-      const indexValue = valueColumn ? valueColumn.toString().trim() : '';
-      const outingIndex = parseInt(indexValue, 10);
-      
-      if (isNaN(outingIndex) || outingIndex < 1 || outingIndex > OutingsConfig.OUTINGS_2026.length) {
-        console.warn(`Invalid outing index: ${outingIndex}, using default course`);
-        return;
-      }
-      
-      // Get the outing data
-      const outing = OutingsConfig.OUTINGS_2026[outingIndex - 1];
+      const res = await BgsData.getNextOuting();
+      const outing = res.outing;
       if (!outing || !outing.courseName) {
-        console.warn('Outing data not found or missing courseName, using default course');
+        console.warn('No upcoming outing from API, using default course');
         return;
       }
-      
+
       const possibleCourseName = outing.courseName;
-      const mappedClubKey = (typeof OutingsConfig.mapClubNameToCourseKey === 'function')
-        ? OutingsConfig.mapClubNameToCourseKey(outing.clubName)
-        : null;
+      const courseKey = this.resolveCourseKeyFromPossibleName(possibleCourseName);
 
-      const courseKey =
-        this.resolveCourseKeyFromPossibleName(possibleCourseName) ||
-        this.resolveCourseKeyFromPossibleName(mappedClubKey);
-
-      // Check if the course exists in the courses object
       if (!courseKey || !this.courses[courseKey]) {
-        console.warn(`Course "${possibleCourseName}" not found in courses list. Available courses:`, Object.keys(this.courses).join(', '));
+        console.warn(
+          `Course "${possibleCourseName}" not found in courses list. Available courses:`,
+          Object.keys(this.courses).join(', ')
+        );
         return;
       }
 
-      // Set as default course
       this.currentCourse = courseKey;
-      console.log(`Default course set to "${courseKey}" based on next outing: ${outing.clubName}`);
+      console.log(`Default course set to "${courseKey}" based on next outing: ${outing.courseName}`);
     } catch (error) {
       console.warn('Failed to load next outing for default course:', error);
-      // Silently fail and use default course
     }
   },
 
   /**
-   * Load player names from Config sheet (Key="Player" keyval pairs) and populate Name combobox datalist.
-   * Supports multiple rows with Key=Player (each Value = one name) or a single row with comma-separated Value.
+   * Load player names from theGolfApp `players` (society botanic) into the Name combobox datalist.
    */
   loadPlayersFromConfig: async function() {
     try {
@@ -303,24 +269,12 @@ const ScorecardPage = {
         console.warn('bgs-api not configured, player list will be empty');
         return;
       }
-      const res = await BgsData.getConfigKvRows();
-      const data = res.rows || [];
-      if (!data.length) return;
-
+      const res = await BgsData.getSocietyPlayers();
+      const players = res.players || [];
       const names = new Set();
-      data.forEach(row => {
-        const key = (row['Key'] || row['key'] || row[Object.keys(row)[0]] || '').toString().trim();
-        if (key.toLowerCase() !== 'player') return;
-        const val = (row['Value'] || row['value'] || row[Object.keys(row)[1]] || '').toString().trim();
-        if (!val) return;
-        if (val.includes(',')) {
-          val.split(',').forEach(s => {
-            const n = s.trim();
-            if (n) names.add(n);
-          });
-        } else {
-          names.add(val);
-        }
+      players.forEach(function(p) {
+        const n = (p.playerName || '').toString().trim();
+        if (n) names.add(n);
       });
 
       const list = document.getElementById('player-datalist');
@@ -332,10 +286,10 @@ const ScorecardPage = {
         list.appendChild(opt);
       });
       if (names.size > 0) {
-        console.log(`Loaded ${names.size} player(s) from Config sheet`);
+        console.log(`Loaded ${names.size} player(s) from society players`);
       }
     } catch (e) {
-      console.warn('Failed to load players from Config sheet:', e);
+      console.warn('Failed to load players from API:', e);
     }
   },
 
