@@ -40,10 +40,16 @@ const NextOuting = {
    * @param {Object} outing — from bgs-api getNextOuting
    */
   render: function(container, outing) {
-    const imageUrl = (outing.courseImage || '').toString().trim();
+    let imageUrl = (outing.courseImage || '').toString().trim();
     const clubUrl = (outing.courseUrl || '').toString().trim();
-    const mapsUrl = (outing.courseMaploc || '').toString().trim();
+    let mapsUrl = (outing.courseMaploc || '').toString().trim();
     const alt = (outing.clubName || outing.courseName || 'Course').toString();
+
+    const staticRow = !imageUrl ? this.getStaticOutingForCourse(outing.courseName) : null;
+    if (staticRow) {
+      if (!imageUrl && staticRow.imagePath) imageUrl = staticRow.imagePath.toString().trim();
+      if (!mapsUrl && staticRow.mapsUrl) mapsUrl = staticRow.mapsUrl.toString().trim();
+    }
 
     const imgHtml = imageUrl
       ? `<img
@@ -112,5 +118,21 @@ const NextOuting = {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  },
+
+  /**
+   * Match `OUTINGS_2026` by course name when API `course_image` is empty.
+   * @param {string} courseName
+   * @returns {typeof OutingsConfig.OUTINGS_2026[0] | null}
+   */
+  getStaticOutingForCourse: function(courseName) {
+    if (!courseName || typeof OutingsConfig === 'undefined' || !OutingsConfig.OUTINGS_2026) return null;
+    const target = courseName.toString().trim().toLowerCase();
+    const list = OutingsConfig.OUTINGS_2026;
+    for (let i = 0; i < list.length; i++) {
+      const row = list[i];
+      if ((row.courseName || '').toString().trim().toLowerCase() === target) return row;
+    }
+    return null;
   }
 };
