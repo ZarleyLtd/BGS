@@ -26,7 +26,7 @@ Query parameter `action` is required. Additional parameters are passed as query 
 | `getCourses` | GET | `{ success, courses: { courseName, parIndx, courseURL, courseMaploc, clubName, courseImage }[] }` — all `courses` (for outings page / imagery). |
 | `getEditorNotesRows` | GET | `{ success, rows: unknown[][] }` — from `societies.captains_notes` (botanic); first column = paragraph text per row. |
 | `getCourseDefs` | GET | `{ success, courses: { [name]: { pars: number[], indexes: number[] } } }` — from `courses.par_indx` for courses that appear on botanic `outings`. |
-| `getSocietyPlayers` | GET | `{ success, players: { playerId, playerName }[] }` — from `players` for botanic. |
+| `getSocietyPlayers` | GET | `{ success, players: { playerId, playerName, visitor }[] }` — from `players` for botanic. `visitor` is `true` for guest / non-member players (default `false`). See [VISITOR_LEADERBOARD_ENCODING.md](./VISITOR_LEADERBOARD_ENCODING.md). |
 | `getNextOuting` | GET | `{ success, outing: null \| { outingId, date, time, courseName, comps, clubName, courseUrl, courseMaploc, courseImage } }` — earliest `outings` row with `outing_date >= today`, joined to `courses`. |
 | `loadScores` | GET/POST | `{ success, scores: Score[] }` — optional `limit` (default 50, max 5000), `playerName`, `course`. |
 | `checkExistingScore` | GET/POST | `{ success, exists, score? }` — query/body: `playerName`, `course`. If multiple scores match, returns the **latest** by `score_timestamp`. |
@@ -37,4 +37,4 @@ Removed from this API (BGS site no longer uses them): `getFixtures`, `getHandica
 
 ## Score object (camelCase)
 
-Matches the legacy sheet/API: `playerName`, `course`, `date` (YYYY-MM-DD), `handicap`, `holes` (length 18, `""` or stroke count), `holePoints`, `totalScore`, `totalPoints`, `outScore`, `outPoints`, `inScore`, `inPoints`, `back6Score`, `back6Points`, `back3Score`, `back3Points`, `timestamp` (ISO).
+Matches the legacy sheet/API: `playerId`, `playerName`, `course`, `date` (YYYY-MM-DD), `handicap`, `holes` (length 18, `""` or stroke count), `holePoints`, `totalScore`, `totalPoints`, `outScore`, `outPoints`, `inScore`, `inPoints`, `back6Score`, `back6Points`, `back3Score`, `back3Points`, `timestamp` (ISO). `playerId` is the canonical foreign key into `players`; clients should prefer it over `playerName` for visitor/handicap lookups.

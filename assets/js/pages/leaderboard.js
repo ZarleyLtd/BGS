@@ -46,6 +46,7 @@ const LeaderboardPage = {
 
       let outings = [];
       let societyRow = null;
+      let players = [];
       if (typeof BgsData !== 'undefined') {
         try {
           if (BgsData.getOutings) {
@@ -63,10 +64,24 @@ const LeaderboardPage = {
         } catch (e) {
           console.warn('Leaderboard: getSociety failed:', e);
         }
+        try {
+          if (BgsData.getSocietyPlayers) {
+            const plRes = await BgsData.getSocietyPlayers();
+            players = (plRes && plRes.players) ? plRes.players : [];
+          }
+        } catch (e) {
+          console.warn('Leaderboard: getSocietyPlayers failed:', e);
+        }
       }
 
-      const societyStatus = this.safeString(societyRow && societyRow.status).toUpperCase();
-      const overallStatus = (societyStatus === 'OAP' || societyStatus === 'O10') ? societyStatus : '';
+      // Society Overall mode + visitor policy. `excludeVisitorsOverall` is gated by
+      // Overall being on; if no OAP/O10 mode, no visitor filtering applies to Overall.
+      const overallStatusInfo = this.parseSocietyOverallStatus(societyRow && societyRow.status);
+      const overallStatus = overallStatusInfo.overallMode;
+      const overallExcludeVisitors =
+        (overallStatus === 'OAP' || overallStatus === 'O10') &&
+        overallStatusInfo.excludeVisitorsOverall;
+      const isVisitorScore = this.buildIsVisitorFromPlayers(players);
 
       const outingOrderKeys = [];
       const dbKeyOrder = {};
@@ -129,9 +144,16 @@ const LeaderboardPage = {
           ? '1st to 10th points over all outings'
           : 'Total points over all outings';
         const scheduleKeys = outingOrderKeys.length ? outingOrderKeys : outingKeysSorted;
+        const overallOpts = {
+          outingOrderKeys: scheduleKeys,
+          scoresByOuting,
+          outingMeta,
+          excludeVisitors: overallExcludeVisitors,
+          isVisitorScore
+        };
         const rankedOverallLeaders = overallStatus === 'O10'
-          ? this.buildO10Overall({ outingOrderKeys: scheduleKeys, scoresByOuting, outingMeta }).rankedOverallLeaders
-          : this.buildOapOverall({ outingOrderKeys: scheduleKeys, scoresByOuting, outingMeta, scores }).rankedOverallLeaders;
+          ? this.buildO10Overall(overallOpts).rankedOverallLeaders
+          : this.buildOapOverall(Object.assign({ scores }, overallOpts)).rankedOverallLeaders;
 
         htmlParts.push('<div class="lb-section lb-section--overall">');
         htmlParts.push('<h2 class="lb-section-title">Overall Leaders</h2>');
@@ -225,9 +247,18 @@ const LeaderboardPage = {
         const showP3 = comps.showP3;
         const p3UsePoints = comps.p3UsePoints; // expected false for P3s
         const show2s = comps.show2s;
+        const show66 = comps.show66;
+
+        // Per-comp visitor filtering (encoding: docs/VISITOR_LEADERBOARD_ENCODING.md).
+        // 18-hole top N filters its own input list; F9/B9/66/P3/2s filter at candidate
+        // construction; the unfiltered `outingScores` is reused below for those comps
+        // so each can apply its own flag independently.
+        const outingScores18 = comps.excludeVisitors18
+          ? outingScores.filter(s => !isVisitorScore(s))
+          : outingScores;
 
         const rankedOverall = this.rankWithCountback(
-          outingScores,
+          outingScores18,
           this.compareCountbackOverall.bind(this),
           Math.max(topNCount, 1),
           this.getCountbackLabelOverall.bind(this)
@@ -253,8 +284,12 @@ const LeaderboardPage = {
         for (let t = 0; t < outingScores.length; t++) {
           const so = outingScores[t];
           const pkey = this.safeString(so && so.playerName).toLowerCase();
-          if (!comps.f9ExclN || !topNNamesF9[pkey]) f9Candidates.push(so);
-          if (!comps.b9ExclN || !topNNamesB9[pkey]) b9Candidates.push(so);
+          if (!(comps.excludeVisitorsF9 && isVisitorScore(so))) {
+            if (!comps.f9ExclN || !topNNamesF9[pkey]) f9Candidates.push(so);
+          }
+          if (!(comps.excludeVisitorsB9 && isVisitorScore(so))) {
+            if (!comps.b9ExclN || !topNNamesB9[pkey]) b9Candidates.push(so);
+          }
         }
 
         const bestOutResult = this.bestWithCountback(
@@ -268,11 +303,24 @@ const LeaderboardPage = {
           this.getCountbackLabelB9.bind(this)
         );
 
+        // 66 candidates (best 6+6 holes) — visitors filtered per-comp.
+        const outingScores66 = comps.excludeVisitors66
+          ? outingScores.filter(s => !isVisitorScore(s))
+          : outingScores;
+        const best66Result = show66
+          ? this.bestWithCountback(
+              outingScores66,
+              this.compareCountback66.bind(this),
+              this.getCountbackLabel66.bind(this)
+            )
+          : { scores: [], countbackLabel: null };
+
         // P3s candidates (par-3 only)
         const par3Candidates = [];
         if (showP3 && par3Indices && par3Indices.length) {
           for (let q = 0; q < outingScores.length; q++) {
             const sq = outingScores[q];
+            if (comps.excludeVisitorsP3 && isVisitorScore(sq)) continue;
             const holes = sq.holes || [];
             const holePoints = sq.holePoints || [];
             let par3Strokes = 0;
@@ -321,6 +369,7 @@ const LeaderboardPage = {
         if (show2s) {
           for (let q2 = 0; q2 < outingScores.length; q2++) {
             const sq2 = outingScores[q2];
+            if (comps.excludeVisitors2s && isVisitorScore(sq2)) continue;
             const holes2 = sq2.holes || [];
             const indices2s = [];
             for (let h2 = 0; h2 < 18; h2++) {
@@ -431,6 +480,29 @@ const LeaderboardPage = {
             sectionParts.push('<span class="lb-cell-name">' + this.escapeHtml(this.displayText(bestIn.playerName)) + '</span>');
             sectionParts.push('<span class="lb-cell-hcp">' + this.formatNumber(bestIn.handicap) + '</span>');
             sectionParts.push('<span class="lb-cell-pts">' + this.formatPointsWithCountback(bestIn.inPoints, bestInResult.countbackLabel) + '</span>');
+            sectionParts.push('</div>');
+            sectionParts.push('<div class="lb-hole-detail-panel"></div>');
+            sectionParts.push('</div>');
+          }
+        }
+
+        // Extra winners: 66 (best 6+6 holes)
+        if (show66 && best66Result.scores.length > 0) {
+          const label66 = best66Result.scores.length > 1 ? '66*' : '66';
+          for (let s66 = 0; s66 < best66Result.scores.length; s66++) {
+            const sc66 = best66Result.scores[s66];
+            const detail66 = this.buildHoleDetailHtml(sc66, parIndexPairs, null, this.indices66(sc66));
+            const escaped66 = detail66
+              .replace(/"/g, '&quot;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;');
+
+            sectionParts.push('<div class="lb-outing-block">');
+            sectionParts.push('<div class="lb-outing-main lb-outing-row" data-detail-html="' + escaped66 + '">');
+            sectionParts.push('<span class="lb-cell-pos">' + this.escapeHtml(label66) + '</span>');
+            sectionParts.push('<span class="lb-cell-name">' + this.escapeHtml(this.displayText(sc66.playerName)) + '</span>');
+            sectionParts.push('<span class="lb-cell-hcp">' + this.formatNumber(sc66.handicap) + '</span>');
+            sectionParts.push('<span class="lb-cell-pts">' + this.formatPointsWithCountback(this.points66(sc66), best66Result.countbackLabel) + '</span>');
             sectionParts.push('</div>');
             sectionParts.push('<div class="lb-hole-detail-panel"></div>');
             sectionParts.push('</div>');
@@ -551,6 +623,21 @@ const LeaderboardPage = {
             sectionParts.push('<td class="leaderboard-player-name lb-name-cell">' + this.escapeHtml(this.displayText(bestIn.playerName)) + '</td>');
             sectionParts.push('<td class="text-center leaderboard-section">' + this.formatNumber(bestIn.handicap) + '</td>');
             sectionParts.push('<td class="text-right leaderboard-points">' + this.formatPointsWithCountback(bestIn.inPoints, bestInResult.countbackLabel) + '</td>');
+            sectionParts.push('</tr>');
+            sectionParts.push('<tr class="lb-detail-row lb-detail-row--table"><td colspan="4">' + detailHtml + '</td></tr>');
+          }
+        }
+
+        if (show66 && best66Result.scores.length > 0) {
+          const tableLabel66 = best66Result.scores.length > 1 ? '66*' : '66';
+          for (let s66 = 0; s66 < best66Result.scores.length; s66++) {
+            const sc66 = best66Result.scores[s66];
+            const detailHtml = this.buildHoleDetailHtml(sc66, parIndexPairs, null, this.indices66(sc66));
+            sectionParts.push('<tr class="lb-outing-row" data-detail-html="' + detailHtml.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '">');
+            sectionParts.push('<td class="leaderboard-position">' + this.escapeHtml(tableLabel66) + '</td>');
+            sectionParts.push('<td class="leaderboard-player-name lb-name-cell">' + this.escapeHtml(this.displayText(sc66.playerName)) + '</td>');
+            sectionParts.push('<td class="text-center leaderboard-section">' + this.formatNumber(sc66.handicap) + '</td>');
+            sectionParts.push('<td class="text-right leaderboard-points">' + this.formatPointsWithCountback(this.points66(sc66), best66Result.countbackLabel) + '</td>');
             sectionParts.push('</tr>');
             sectionParts.push('<tr class="lb-detail-row lb-detail-row--table"><td colspan="4">' + detailHtml + '</td></tr>');
           }
@@ -852,8 +939,77 @@ const LeaderboardPage = {
     return out;
   },
 
+  /**
+   * Society status: tokenize on commas/whitespace and uppercase. Recognises
+   * `OAP` / `O10` (visitors excluded from Overall by default), `OAPV` / `O10V`
+   * (visitors included), and a separate `V` token alongside `OAP` / `O10`
+   * (also includes visitors).
+   *
+   * Returns `{ overallMode: '' | 'OAP' | 'O10', excludeVisitorsOverall: boolean }`.
+   * `excludeVisitorsOverall` is always `false` when Overall is off (`overallMode === ''`).
+   * Mirrors `LeaderboardShared.parseSocietyOverallStatus` in theGolfApp.
+   */
+  parseSocietyOverallStatus: function(statusStr) {
+    const parts = this.safeString(statusStr).toUpperCase().split(/[,\s]+/).filter(Boolean);
+    let overallMode = '';
+    let includeVisitorsInOverall = false;
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i];
+      if (p === 'OAPV') {
+        overallMode = 'OAP';
+        includeVisitorsInOverall = true;
+      } else if (p === 'O10V') {
+        overallMode = 'O10';
+        includeVisitorsInOverall = true;
+      } else if (p === 'OAP' || p === 'O10') {
+        overallMode = p;
+      }
+    }
+    if (!includeVisitorsInOverall && (overallMode === 'OAP' || overallMode === 'O10')) {
+      for (let j = 0; j < parts.length; j++) {
+        if (parts[j] === 'V') { includeVisitorsInOverall = true; break; }
+      }
+    }
+    return {
+      overallMode,
+      excludeVisitorsOverall: overallMode ? !includeVisitorsInOverall : false
+    };
+  },
+
+  /**
+   * Build a `(score) => boolean` classifier from the society players list.
+   * Prefers `score.playerId` over `score.playerName` (case-insensitive name fallback).
+   * Mirrors `LeaderboardShared.buildIsVisitorFromPlayers` in theGolfApp.
+   */
+  buildIsVisitorFromPlayers: function(players) {
+    const byId = {};
+    const byName = {};
+    const list = players || [];
+    for (let i = 0; i < list.length; i++) {
+      const p = list[i];
+      if (!p) continue;
+      const pid = (p.playerId != null ? String(p.playerId) : '').trim();
+      if (pid) byId[pid] = p.visitor === true;
+      const nm = this.safeString(p.playerName).toLowerCase();
+      if (nm) byName[nm] = p.visitor === true;
+    }
+    return function(score) {
+      if (!score) return false;
+      const sid = (score.playerId != null ? String(score.playerId) : '').trim();
+      if (sid && Object.prototype.hasOwnProperty.call(byId, sid)) return byId[sid];
+      const sn = (score.playerName != null ? String(score.playerName) : '').trim().toLowerCase();
+      return !!byName[sn];
+    };
+  },
+
+  /**
+   * Comps parser: tokens are case-insensitive and split on commas/whitespace.
+   * Each per-comp `excludeVisitors*` defaults to `true`; a trailing lowercase `v`
+   * on the token (after any numeric tail) clears it to `false`. Mirrors
+   * `LeaderboardShared.parseComps` in theGolfApp; team tokens are tolerated
+   * but BGS does not render them.
+   */
   parseComps: function(compsStr) {
-    // Only the subset needed for the requested comps string.
     const tokens = this.safeString(compsStr).toLowerCase().split(/[,\s]+/).filter(Boolean);
     const MAX_PLACES = 20;
 
@@ -865,19 +1021,63 @@ const LeaderboardPage = {
       showB9: false,
       showP3: false,
       p3UsePoints: false,
-      show2s: false
+      show2s: false,
+      show66: false,
+      excludeVisitors18: true,
+      excludeVisitorsF9: true,
+      excludeVisitorsB9: true,
+      excludeVisitorsP3: true,
+      excludeVisitors2s: true,
+      excludeVisitors66: true
     };
 
     for (let i = 0; i < tokens.length; i++) {
       const t = tokens[i];
-      if (t.indexOf('18:') === 0) out.topN = Math.min(MAX_PLACES, parseInt(t.slice(3), 10) || 0);
-      else if (t === 'f9') { out.showF9 = true; out.f9ExclN = 0; }
-      else if (t.indexOf('f9:') === 0) { out.showF9 = true; out.f9ExclN = Math.min(MAX_PLACES, parseInt(t.slice(3), 10) || 0); }
-      else if (t === 'b9') { out.showB9 = true; out.b9ExclN = 0; }
-      else if (t.indexOf('b9:') === 0) { out.showB9 = true; out.b9ExclN = Math.min(MAX_PLACES, parseInt(t.slice(3), 10) || 0); }
-      else if (t === 'p3s') { out.showP3 = true; out.p3UsePoints = false; }
-      else if (t === 'p3p') { out.showP3 = true; out.p3UsePoints = true; }
-      else if (t === '2s') { out.show2s = true; }
+      if (t.indexOf('18:') === 0) {
+        const inc18 = t.length > 3 && t.slice(-1) === 'v';
+        const n18 = inc18 ? t.slice(3, -1) : t.slice(3);
+        out.topN = Math.min(MAX_PLACES, parseInt(n18, 10) || 0);
+        if (inc18) out.excludeVisitors18 = false;
+      } else if (t === 'f9v') {
+        out.showF9 = true; out.f9ExclN = 0; out.excludeVisitorsF9 = false;
+      } else if (t === 'f9') {
+        out.showF9 = true; out.f9ExclN = 0;
+      } else if (t.indexOf('f9:') === 0) {
+        out.showF9 = true;
+        const incF9 = t.slice(-1) === 'v';
+        const tailF9 = incF9 ? t.slice(3, -1) : t.slice(3);
+        out.f9ExclN = Math.min(MAX_PLACES, parseInt(tailF9, 10) || 0);
+        if (incF9) out.excludeVisitorsF9 = false;
+      } else if (t === 'b9v') {
+        out.showB9 = true; out.b9ExclN = 0; out.excludeVisitorsB9 = false;
+      } else if (t === 'b9') {
+        out.showB9 = true; out.b9ExclN = 0;
+      } else if (t.indexOf('b9:') === 0) {
+        out.showB9 = true;
+        const incB9 = t.slice(-1) === 'v';
+        const tailB9 = incB9 ? t.slice(3, -1) : t.slice(3);
+        out.b9ExclN = Math.min(MAX_PLACES, parseInt(tailB9, 10) || 0);
+        if (incB9) out.excludeVisitorsB9 = false;
+      } else if (t === 'p3sv') {
+        out.showP3 = true; out.p3UsePoints = false; out.excludeVisitorsP3 = false;
+      } else if (t === 'p3s') {
+        out.showP3 = true; out.p3UsePoints = false;
+      } else if (t === 'p3pv') {
+        out.showP3 = true; out.p3UsePoints = true; out.excludeVisitorsP3 = false;
+      } else if (t === 'p3p') {
+        out.showP3 = true; out.p3UsePoints = true;
+      } else if (t === '2sv') {
+        out.show2s = true; out.excludeVisitors2s = false;
+      } else if (t === '2s') {
+        out.show2s = true;
+      } else if (t === '66v') {
+        out.show66 = true; out.excludeVisitors66 = false;
+      } else if (t === '66') {
+        out.show66 = true;
+      }
+      // Team tokens (`th:`, `tt:`, `tw`, `td`, `team`, `team:`) are intentionally
+      // ignored: BGS leaderboard does not render team comps. A trailing `v` on
+      // hand-edited `th:Nv` / `tt:Nv` is harmless because we don't use teamN here.
     }
 
     return out;
@@ -937,6 +1137,48 @@ const LeaderboardPage = {
     return 0;
   },
 
+  /** "Best 6+6": sum of the 6 highest-point holes in F9 plus the 6 highest in B9.
+   *  Tie-break uses descending hole index (later hole first), matching theGolfApp. */
+  points66: function(score) {
+    const pts = (score && score.holePoints) || [];
+    const sliceSum = (start, end) => {
+      const list = [];
+      for (let i = start; i < end; i++) {
+        const p = parseFloat(pts[i]);
+        list.push({ i, p: isNaN(p) ? 0 : p });
+      }
+      list.sort((a, b) => (a.p !== b.p ? b.p - a.p : b.i - a.i));
+      let sum = 0;
+      for (let k = 0; k < 6 && k < list.length; k++) sum += list[k].p;
+      return sum;
+    };
+    return sliceSum(0, 9) + sliceSum(9, 18);
+  },
+
+  /** Hole indices contributing to `points66`, used for detail-panel highlighting. */
+  indices66: function(score) {
+    const pts = (score && score.holePoints) || [];
+    const sliceIdx = (start, end) => {
+      const list = [];
+      for (let i = start; i < end; i++) {
+        const p = parseFloat(pts[i]);
+        list.push({ i, p: isNaN(p) ? 0 : p });
+      }
+      list.sort((a, b) => (a.p !== b.p ? b.p - a.p : b.i - a.i));
+      const out = [];
+      for (let k = 0; k < 6 && k < list.length; k++) out.push(list[k].i);
+      return out;
+    };
+    return sliceIdx(0, 9).concat(sliceIdx(9, 18));
+  },
+
+  compareCountback66: function(a, b) {
+    const pa = this.points66(a);
+    const pb = this.points66(b);
+    if (pa !== pb) return pb - pa;
+    return this.compareCountbackOverall(a, b);
+  },
+
   getCountbackLabelOverall: function(winner, runnerUp) {
     const wPts = parseFloat(winner.totalPoints) || 0;
     const rPts = parseFloat(runnerUp.totalPoints) || 0;
@@ -980,6 +1222,11 @@ const LeaderboardPage = {
       if (sw > sr) return b9Labels[r];
     }
     return null;
+  },
+
+  getCountbackLabel66: function(winner, runnerUp) {
+    if (this.points66(winner) > this.points66(runnerUp)) return null;
+    return this.getCountbackLabelOverall(winner, runnerUp);
   },
 
   formatPointsWithCountback: function(points, countbackLabel) {
@@ -1091,10 +1338,12 @@ const LeaderboardPage = {
   },
 
   // OAP overall: sum of Stableford points across outings (best card per player per outing).
-  buildOapOverall: function({ outingOrderKeys, scoresByOuting, outingMeta, scores }) {
+  buildOapOverall: function({ outingOrderKeys, scoresByOuting, outingMeta, scores, excludeVisitors, isVisitorScore }) {
+    const skipVisitor = excludeVisitors && typeof isVisitorScore === 'function';
     const byKeyPlayer = {};
     for (let i = 0; i < scores.length; i++) {
       const sc = scores[i];
+      if (skipVisitor && isVisitorScore(sc)) continue;
       const course = this.safeString(sc && sc.course);
       const date = this.safeString(sc && sc.date);
       const name = this.safeString(sc && sc.playerName).trim();
@@ -1132,7 +1381,8 @@ const LeaderboardPage = {
     const outingPositions = {};
     for (let op = 0; op < outingOrderKeys.length; op++) {
       const oKeyOp = outingOrderKeys[op];
-      const rawOp = scoresByOuting[oKeyOp] || [];
+      let rawOp = scoresByOuting[oKeyOp] || [];
+      if (skipVisitor) rawOp = rawOp.filter(r => !isVisitorScore(r));
       const byPlayerOp = {};
       for (let ro = 0; ro < rawOp.length; ro++) {
         const rscOp = rawOp[ro];
@@ -1199,13 +1449,17 @@ const LeaderboardPage = {
       });
     }
 
-    const filtered = overallList.filter(p => (parseFloat(p.totalPoints) || 0) > 0);
+    const filtered = overallList.filter(p => {
+      if (skipVisitor && isVisitorScore({ playerName: p.name })) return false;
+      return (parseFloat(p.totalPoints) || 0) > 0;
+    });
     const rankedOverallLeaders = this.rankOverallByPoints(filtered);
     return { rankedOverallLeaders, playerTotals };
   },
 
   // O10 overall: 1st=10pts, 2nd=9,... 10th=1 per outing. Ties get same points.
-  buildO10Overall: function({ outingOrderKeys, scoresByOuting, outingMeta }) {
+  buildO10Overall: function({ outingOrderKeys, scoresByOuting, outingMeta, excludeVisitors, isVisitorScore }) {
+    const skipVisitor = excludeVisitors && typeof isVisitorScore === 'function';
     const pointsForPos = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
     const positionPointsByPlayer = {};
     const positionDetailsByPlayer = {};
@@ -1214,7 +1468,8 @@ const LeaderboardPage = {
     // Build playerTotals for handicaps and display names (across O10 assignments).
     for (let si = 0; si < outingOrderKeys.length; si++) {
       const oKey = outingOrderKeys[si];
-      const rawScores = scoresByOuting[oKey] || [];
+      let rawScores = scoresByOuting[oKey] || [];
+      if (skipVisitor) rawScores = rawScores.filter(r => !isVisitorScore(r));
       const byPlayer = {};
 
       for (let rs = 0; rs < rawScores.length; rs++) {
@@ -1241,7 +1496,8 @@ const LeaderboardPage = {
 
     for (let okIdx = 0; okIdx < outingOrderKeys.length; okIdx++) {
       const oKey = outingOrderKeys[okIdx];
-      const rawScores = scoresByOuting[oKey] || [];
+      let rawScores = scoresByOuting[oKey] || [];
+      if (skipVisitor) rawScores = rawScores.filter(r => !isVisitorScore(r));
 
       const byPlayer = {};
       for (let rs = 0; rs < rawScores.length; rs++) {
@@ -1304,7 +1560,10 @@ const LeaderboardPage = {
       });
     }
 
-    const filtered = overallList.filter(p => (parseFloat(p.totalPoints) || 0) > 0);
+    const filtered = overallList.filter(p => {
+      if (skipVisitor && isVisitorScore({ playerName: p.name })) return false;
+      return (parseFloat(p.totalPoints) || 0) > 0;
+    });
     const rankedOverallLeaders = this.rankOverallByPoints(filtered);
 
     return { rankedOverallLeaders, playerTotals };

@@ -122,6 +122,7 @@ function mapScoreRow(row: ScoreJoinRow): Record<string, unknown> {
   const outingDate = row.outings?.outing_date;
 
   return {
+    playerId: String(row.player_id ?? ""),
     playerName: String(row.players?.player_name ?? row.player_id ?? ""),
     course: String(row.outings?.course_name ?? ""),
     date: outingDate ? toDateString(outingDate) : "",
@@ -460,16 +461,19 @@ async function getCourseDefsObject(sb: ReturnType<typeof createClient>) {
 async function getSocietyPlayers(sb: ReturnType<typeof createClient>) {
   const { data, error } = await sb
     .from("players")
-    .select("player_id, player_name")
+    .select("player_id, player_name, visitor")
     .eq("society_id", SOCIETY_ID)
     .order("player_name");
   if (error) throw new Error(error.message);
   return {
     success: true,
-    players: (data || []).map((p: { player_id: string; player_name: string }) => ({
-      playerId: p.player_id,
-      playerName: p.player_name,
-    })),
+    players: (data || []).map(
+      (p: { player_id: string; player_name: string; visitor?: boolean | null }) => ({
+        playerId: p.player_id,
+        playerName: p.player_name,
+        visitor: p.visitor === true,
+      }),
+    ),
   };
 }
 

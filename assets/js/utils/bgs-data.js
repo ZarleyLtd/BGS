@@ -46,7 +46,10 @@ const BgsData = {
 
   /**
    * Players for society botanic (theGolfApp `players` table).
-   * @returns {Promise<{ success: boolean, players: Array<{ playerId: string, playerName: string }> }>}
+   * `visitor === true` flags guest / non-member players (used by leaderboard
+   * to exclude visitors per society `status` and per outing `comps`; see
+   * docs/VISITOR_LEADERBOARD_ENCODING.md).
+   * @returns {Promise<{ success: boolean, players: Array<{ playerId: string, playerName: string, visitor: boolean }> }>}
    */
   getSocietyPlayers: function() {
     return this.fetchJson("getSocietyPlayers");
