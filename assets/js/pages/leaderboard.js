@@ -137,7 +137,7 @@ const LeaderboardPage = {
         return dA - dB;
       });
 
-      const htmlParts = [];
+      const panelParts = [];
 
       if (overallStatus === 'O10' || overallStatus === 'OAP') {
         const overallSubtitle = overallStatus === 'O10'
@@ -155,12 +155,13 @@ const LeaderboardPage = {
           ? this.buildO10Overall(overallOpts).rankedOverallLeaders
           : this.buildOapOverall(Object.assign({ scores }, overallOpts)).rankedOverallLeaders;
 
-        htmlParts.push('<div class="lb-section lb-section--overall">');
-        htmlParts.push('<h2 class="lb-section-title">Overall Leaders</h2>');
-        htmlParts.push('<p class="lb-subsection-title">' + this.escapeHtml(overallSubtitle) + '</p>');
+        const overallParts = [];
+        overallParts.push('<div class="lb-section lb-section--overall">');
+        overallParts.push('<h2 class="lb-section-title">Overall Leaders</h2>');
+        overallParts.push('<p class="lb-subsection-title">' + this.escapeHtml(overallSubtitle) + '</p>');
 
-        htmlParts.push('<div class="lb-overall-grid">');
-        htmlParts.push('<div class="lb-overall-grid-header"><span>Pos</span><span>Name</span><span>Total Points</span></div>');
+        overallParts.push('<div class="lb-overall-grid">');
+        overallParts.push('<div class="lb-overall-grid-header"><span>Pos</span><span>Name</span><span>Total Points</span></div>');
 
         for (let rg = 0; rg < rankedOverallLeaders.length; rg++) {
           const group = rankedOverallLeaders[rg];
@@ -172,19 +173,19 @@ const LeaderboardPage = {
             const hasDetail = details.length > 0;
             const rowClass = 'lb-overall-grid-row' + (hasDetail ? ' lb-overall-row-with-detail' : '');
 
-            htmlParts.push(
+            overallParts.push(
               '<div class="' + rowClass + '"' +
               (hasDetail ? ' data-overall-expand role="button" tabindex="0" aria-expanded="false"' : '') +
               '>'
             );
-            htmlParts.push('<span class="leaderboard-position">' + this.escapeHtml(ord) + '</span>');
-            htmlParts.push('<span class="leaderboard-player-name">' + this.escapeHtml(this.displayText(pl.name)) + '</span>');
-            htmlParts.push('<span class="text-right">' + totalSpan + '</span>');
-            htmlParts.push('</div>');
+            overallParts.push('<span class="leaderboard-position">' + this.escapeHtml(ord) + '</span>');
+            overallParts.push('<span class="leaderboard-player-name">' + this.escapeHtml(this.displayText(pl.name)) + '</span>');
+            overallParts.push('<span class="text-right">' + totalSpan + '</span>');
+            overallParts.push('</div>');
 
             if (hasDetail) {
-              htmlParts.push('<div class="lb-overall-row-detail" role="region" aria-label="Outings for ' + this.escapeHtml(this.displayText(pl.name)) + '">');
-              htmlParts.push('<ul class="lb-overall-row-detail-grid">');
+              overallParts.push('<div class="lb-overall-row-detail" role="region" aria-label="Outings for ' + this.escapeHtml(this.displayText(pl.name)) + '">');
+              overallParts.push('<ul class="lb-overall-row-detail-grid">');
               for (let di = 0; di < details.length; di++) {
                 const d = details[di];
                 const posStr = this.positionLabel(d.position);
@@ -194,18 +195,20 @@ const LeaderboardPage = {
                   this.formatNumber(stablefordVal) +
                   ' pts - <span class="lb-overall-detail-pos">' +
                   this.escapeHtml(posStr) + ' place</span>';
-                htmlParts.push('<li><span></span><span>' + lineText + '</span><span class="lb-overall-detail-pts-right">' + this.formatNumber(d.points) + '</span></li>');
+                overallParts.push('<li><span></span><span>' + lineText + '</span><span class="lb-overall-detail-pts-right">' + this.formatNumber(d.points) + '</span></li>');
               }
-              htmlParts.push('</ul></div>');
+              overallParts.push('</ul></div>');
             }
           }
         }
-        htmlParts.push('</div></div>');
+        overallParts.push('</div></div>');
+        panelParts.push(overallParts.join(''));
       }
 
-      // Per-outing sections
-      for (let oi = 0; oi < outingKeysSorted.length; oi++) {
-        const oKey = outingKeysSorted[oi];
+      // Per-outing panels: most recent first (reverse chronological)
+      const outingKeysForDisplay = outingKeysSorted.slice().reverse();
+      for (let oi = 0; oi < outingKeysForDisplay.length; oi++) {
+        const oKey = outingKeysForDisplay[oi];
         const meta = outingMeta[oKey] || {};
         const courseNameDisplay = this.displayText(meta.courseNameDisplay || oKey.split('|')[0]);
         const outingDateStr = meta.outingDateStr || '';
@@ -700,10 +703,22 @@ const LeaderboardPage = {
         sectionParts.push('</tbody></table></div>');
         sectionParts.push('</div>'); // lb-section
 
-        htmlParts.push(sectionParts.join(''));
+        panelParts.push(sectionParts.join(''));
       }
 
-      container.innerHTML = htmlParts.join('');
+      if (!panelParts.length) {
+        container.innerHTML = '<div class="no-scores"><p>No leaderboard data found.</p></div>';
+        return;
+      }
+
+      container.innerHTML =
+        '<div class="lb-carousel-track">' +
+        panelParts.map(function(panelHtml) {
+          return '<div class="lb-carousel-panel">' + panelHtml + '</div>';
+        }).join('') +
+        '</div>';
+
+      this.setupCircularCarousel(container);
 
       // --- Interactions (match theGolfApp) ---
       const toggleOverallDetail = overallRow => {
@@ -808,6 +823,100 @@ const LeaderboardPage = {
       console.error('Leaderboard: Failed to load leaderboard:', err);
       container.innerHTML = '<div class="no-scores"><p style="color: #721c24;">Unable to load leaderboard. Check the console for details.</p></div>';
     }
+  },
+
+  /**
+   * Wrap the carousel so scrolling past the last panel returns to the first
+   * (and scrolling before the first returns to the last) using cloned edge panels.
+   */
+  setupCircularCarousel: function(container) {
+    const track = container.querySelector('.lb-carousel-track');
+    if (!track) return;
+
+    const realPanels = Array.from(track.querySelectorAll('.lb-carousel-panel'));
+    if (realPanels.length < 2) return;
+
+    const cloneLast = realPanels[realPanels.length - 1].cloneNode(true);
+    const cloneFirst = realPanels[0].cloneNode(true);
+    cloneLast.classList.add('lb-carousel-panel--clone');
+    cloneFirst.classList.add('lb-carousel-panel--clone');
+    cloneLast.setAttribute('aria-hidden', 'true');
+    cloneFirst.setAttribute('aria-hidden', 'true');
+
+    track.insertBefore(cloneLast, realPanels[0]);
+    track.appendChild(cloneFirst);
+
+    const allPanels = Array.from(track.querySelectorAll('.lb-carousel-panel'));
+    const firstReal = allPanels[1];
+    const lastReal = allPanels[realPanels.length];
+    const cloneLastPanel = allPanels[0];
+    const cloneFirstPanel = allPanels[allPanels.length - 1];
+
+    let isJumping = false;
+    let scrollEndTimer = null;
+
+    const jumpToPanel = function(panel) {
+      isJumping = true;
+      container.style.scrollSnapType = 'none';
+      container.style.scrollBehavior = 'auto';
+      container.scrollLeft = panel.offsetLeft;
+      requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+          container.style.scrollSnapType = '';
+          container.style.scrollBehavior = '';
+          isJumping = false;
+        });
+      });
+    };
+
+    const activePanel = function() {
+      const midpoint = container.scrollLeft + container.clientWidth * 0.5;
+      let best = allPanels[0];
+      let bestDist = Infinity;
+      for (let i = 0; i < allPanels.length; i++) {
+        const p = allPanels[i];
+        const center = p.offsetLeft + p.offsetWidth * 0.5;
+        const dist = Math.abs(center - midpoint);
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = p;
+        }
+      }
+      return best;
+    };
+
+    const handleScrollEnd = function() {
+      if (isJumping) return;
+      const current = activePanel();
+      if (current === cloneFirstPanel) jumpToPanel(firstReal);
+      else if (current === cloneLastPanel) jumpToPanel(lastReal);
+    };
+
+    const onScroll = function() {
+      if (isJumping) return;
+      clearTimeout(scrollEndTimer);
+      scrollEndTimer = setTimeout(handleScrollEnd, 120);
+    };
+
+    container.addEventListener('scroll', onScroll, { passive: true });
+    if ('onscrollend' in container) {
+      container.addEventListener('scrollend', handleScrollEnd, { passive: true });
+    }
+
+    const onResize = function() {
+      const current = activePanel();
+      let target = firstReal;
+      if (current === cloneFirstPanel || current === firstReal) target = firstReal;
+      else if (current === cloneLastPanel || current === lastReal) target = lastReal;
+      else if (realPanels.indexOf(current) >= 0) target = current;
+      jumpToPanel(target);
+    };
+
+    window.addEventListener('resize', onResize);
+
+    requestAnimationFrame(function() {
+      jumpToPanel(firstReal);
+    });
   },
 
   // --- Helpers (ported/adapted from theGolfApp) ---
