@@ -2,6 +2,14 @@
 
 const NextOuting = {
 
+  /** Same default as outings-2026.html when course image is missing or fails to load */
+  defaultImage: 'assets/images/golfBanner.jpg',
+
+  titleOverlayStyle:
+    'position: absolute; bottom: 0; left: 0; right: 0; padding: 0.75em 1em; ' +
+    'background: linear-gradient(to top, rgba(0,0,0,0.75), transparent); color: #fff; ' +
+    'font-size: 1.4em; font-weight: 600; text-align: center; text-shadow: 0 1px 2px rgba(0,0,0,0.8);',
+
   /**
    * Initialize and load next outing
    */
@@ -40,48 +48,21 @@ const NextOuting = {
    * @param {Object} outing — from bgs-api getNextOuting
    */
   render: function(container, outing) {
-    let imageUrl = (outing.courseImage || '').toString().trim();
-    const clubUrl = (outing.courseUrl || '').toString().trim();
+    const staticRow = this.getStaticOutingForCourse(outing.courseName);
     let mapsUrl = (outing.courseMaploc || '').toString().trim();
-    const alt = (outing.clubName || outing.courseName || 'Course').toString();
-
-    const staticRow = !imageUrl ? this.getStaticOutingForCourse(outing.courseName) : null;
-    if (staticRow) {
-      if (!imageUrl && staticRow.imagePath) imageUrl = staticRow.imagePath.toString().trim();
-      if (!mapsUrl && staticRow.mapsUrl) mapsUrl = staticRow.mapsUrl.toString().trim();
+    if (staticRow && !mapsUrl && staticRow.mapsUrl) {
+      mapsUrl = staticRow.mapsUrl.toString().trim();
     }
 
-    const imgHtml = imageUrl
-      ? `<img
-              src="${this.escapeHtml(imageUrl)}"
-              alt="${this.escapeHtml(alt)}"
-              style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: block;"
-            />`
-      : `<div style="padding: 2em; text-align: center; color: #666;">${this.escapeHtml(alt)}</div>`;
-
-    const wrapStart = clubUrl
-      ? `<a href="${this.escapeHtml(clubUrl)}" target="_blank" rel="noreferrer noopener" style="display: block;">`
-      : '<div style="display: block;">';
-    const wrapEnd = clubUrl ? '</a>' : '</div>';
-
-    const mapsBtn = mapsUrl
-      ? `<a href="${this.escapeHtml(mapsUrl)}" target="_blank" rel="noreferrer noopener" style="position: absolute; top: 8px; right: 8px; width: 40px; height: 40px; background-color: rgba(255, 255, 255, 0.9); border: 1px solid rgba(0, 0, 0, 0.1); border-radius: 4px; display: flex; align-items: center; justify-content: center; text-decoration: none; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" title="Map / location">
-            <span style="font-size: 20px;">📍</span>
-          </a>`
-      : '';
-
-    const html = `
-      <div style="text-align: center; margin: 2em 0;">
-        <div style="position: relative; display: inline-block; max-width: 100%;">
-          ${wrapStart}
-            ${imgHtml}
-          ${wrapEnd}
-          ${mapsBtn}
-        </div>
-      </div>
-    `;
-
-    container.innerHTML = html;
+    container.innerHTML = this.buildOutingCardHtml({
+      imageUrl: this.resolveImageSrc(outing.courseImage, outing.courseName),
+      courseName: outing.courseName || outing.clubName || 'Outing',
+      clubUrl: (outing.courseUrl || '').toString().trim(),
+      mapsUrl: mapsUrl,
+      date: outing.date,
+      time: outing.time,
+      alt: outing.clubName || outing.courseName || 'Course',
+    });
   },
 
   /**
@@ -94,24 +75,93 @@ const NextOuting = {
       container.innerHTML = '<p><em>No outing information available.</em></p>';
       return;
     }
-    const html = `
+    container.innerHTML = this.buildOutingCardHtml({
+      imageUrl: (defaultOuting.imagePath || this.defaultImage).toString().trim(),
+      courseName: defaultOuting.courseName || defaultOuting.clubName || 'Outing',
+      clubUrl: (defaultOuting.clubUrl || '').toString().trim(),
+      mapsUrl: (defaultOuting.mapsUrl || '').toString().trim(),
+      date: '',
+      time: '',
+      alt: defaultOuting.clubName || defaultOuting.courseName || 'Course',
+    });
+    console.warn('Using static OutingsConfig fallback for next outing');
+  },
+
+  /**
+   * Outing card markup — matches outings-2026.html (title overlay on image, date/time below).
+   * @param {Object} opts
+   * @returns {string}
+   */
+  buildOutingCardHtml: function(opts) {
+    const imageUrl = (opts.imageUrl || this.defaultImage).toString().trim();
+    const courseName = this.escapeHtml(opts.courseName || opts.alt || 'Outing');
+    const alt = this.escapeHtml(opts.alt || opts.courseName || 'Course');
+    const clubUrl = (opts.clubUrl || '').toString().trim();
+    const mapsUrl = (opts.mapsUrl || '').toString().trim();
+    const fallbackSrc = this.escapeHtml(this.defaultImage);
+    const dateTime = this.formatDateTime(opts.date, opts.time);
+
+    const wrapStart = clubUrl
+      ? `<a href="${this.escapeHtml(clubUrl)}" target="_blank" rel="noreferrer noopener" style="display: block;">`
+      : '<div style="display: block;">';
+    const wrapEnd = clubUrl ? '</a>' : '</div>';
+
+    const mapsBtn = mapsUrl
+      ? `<a href="${this.escapeHtml(mapsUrl)}" target="_blank" rel="noreferrer noopener" style="position: absolute; top: 8px; right: 8px; width: 40px; height: 40px; background-color: rgba(255, 255, 255, 0.9); border: 1px solid rgba(0, 0, 0, 0.1); border-radius: 4px; display: flex; align-items: center; justify-content: center; text-decoration: none; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" title="View on map">
+            <span style="font-size: 20px;">📍</span>
+          </a>`
+      : '';
+
+    const dateTimeHtml = dateTime
+      ? `<div style="color: #666; margin-top: 0.5em; margin-bottom: 0.5em;">${this.escapeHtml(dateTime)}</div>`
+      : '';
+
+    return `
       <div style="text-align: center; margin: 2em 0;">
         <div style="position: relative; display: inline-block; max-width: 100%;">
-          <a href="${this.escapeHtml(defaultOuting.clubUrl)}" target="_blank" rel="noreferrer noopener" style="display: block;">
+          ${wrapStart}
             <img
-              src="${this.escapeHtml(defaultOuting.imagePath)}"
-              alt="${this.escapeHtml(defaultOuting.clubName)}"
+              src="${this.escapeHtml(imageUrl)}"
+              alt="${alt}"
               style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: block;"
+              onerror="this.onerror=null; this.src='${fallbackSrc}';"
             />
-          </a>
-          <a href="${this.escapeHtml(defaultOuting.mapsUrl)}" target="_blank" rel="noreferrer noopener" style="position: absolute; top: 8px; right: 8px; width: 40px; height: 40px; background-color: rgba(255, 255, 255, 0.9); border: 1px solid rgba(0, 0, 0, 0.1); border-radius: 4px; display: flex; align-items: center; justify-content: center; text-decoration: none; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" title="View on Google Maps">
-            <span style="font-size: 20px;">📍</span>
-          </a>
+            <span style="${this.titleOverlayStyle}">${courseName}</span>
+          ${wrapEnd}
+          ${mapsBtn}
         </div>
+        ${dateTimeHtml}
       </div>
     `;
-    container.innerHTML = html;
-    console.warn('Using static OutingsConfig fallback for next outing');
+  },
+
+  formatDateTime: function(dateStr, timeStr) {
+    if (typeof Formatters !== 'undefined' && Formatters.formatOutingDateTime) {
+      return Formatters.formatOutingDateTime(dateStr, timeStr);
+    }
+    const d = dateStr ? String(dateStr).trim() : '';
+    const t = timeStr ? String(timeStr).trim() : '';
+    if (d && t) return d + ' @ ' + t;
+    return d || t || '';
+  },
+
+  /**
+   * Resolve course image URL — same rules as outings-2026.html.
+   * @param {string} courseImage — filename from API or full path
+   * @param {string} courseName — for static OutingsConfig fallback
+   * @returns {string}
+   */
+  resolveImageSrc: function(courseImage, courseName) {
+    const imgFile = (courseImage || '').toString().trim();
+    if (imgFile) {
+      if (/^(https?:|\/|assets\/)/i.test(imgFile)) return imgFile;
+      return 'assets/images/clubs/' + imgFile;
+    }
+    const staticRow = this.getStaticOutingForCourse(courseName);
+    if (staticRow && staticRow.imagePath) {
+      return staticRow.imagePath.toString().trim();
+    }
+    return this.defaultImage;
   },
 
   escapeHtml: function(text) {
