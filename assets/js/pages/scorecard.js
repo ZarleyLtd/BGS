@@ -121,6 +121,8 @@ const ScorecardPage = {
   currentCourse: null,
   pars: null,
   indexes: null,
+  currentPlayerId: null,
+  playersWithHandicap: [],
 
   /** When an existing score is loaded (loadScoreIntoForm), store it here for "Already recorded" check and delete. */
   _loadedExistingScore: null,
@@ -271,6 +273,7 @@ const ScorecardPage = {
       }
       const res = await BgsData.getSocietyPlayers();
       const players = res.players || [];
+      this.playersWithHandicap = players;
       const names = new Set();
       players.forEach(function(p) {
         const n = (p.playerName || '').toString().trim();
@@ -468,7 +471,16 @@ const ScorecardPage = {
       });
       
       // Check for existing score when name loses focus
+      playerInput.addEventListener('input', () => {
+        this.fillHandicapFromPlayer();
+      });
+
+      playerInput.addEventListener('change', () => {
+        this.fillHandicapFromPlayer();
+      });
+
       playerInput.addEventListener('blur', () => {
+        this.fillHandicapFromPlayer();
         const newNameKey = this.normalizeName(playerInput.value.trim());
 
         // If the user changed the name (including selecting from the dropdown),
@@ -782,6 +794,32 @@ const ScorecardPage = {
     return name.toLowerCase().replace(/\s+/g, '');
   },
 
+  /** When player name matches a society roster entry, fill H/C and set currentPlayerId. */
+  fillHandicapFromPlayer: function() {
+    const list = this.playersWithHandicap;
+    if (!list || !list.length) return;
+    const playerInput = document.getElementById('player-name');
+    const handicapInput = document.getElementById('handicap');
+    if (!playerInput || !handicapInput) return;
+    const name = (playerInput.value || '').trim();
+    if (!name) {
+      this.currentPlayerId = null;
+      return;
+    }
+    const norm = this.normalizeName(name);
+    for (let i = 0; i < list.length; i++) {
+      const p = list[i];
+      const pName = (p.playerName || '').trim();
+      if (this.normalizeName(pName) === norm) {
+        const hc = p.handicap != null && p.handicap !== '' ? String(p.handicap).trim() : '';
+        handicapInput.value = hc;
+        this.currentPlayerId = p.playerId || null;
+        return;
+      }
+    }
+    this.currentPlayerId = null;
+  },
+
   // Normalize course names for matching between:
   // - outing configuration values
   // - scorecard course keys (as stored in dropdown & sheet)
@@ -963,6 +1001,16 @@ const ScorecardPage = {
       return;
     }
 
+    this.fillHandicapFromPlayer();
+    if (!this.currentPlayerId) {
+      if (typeof BriefMessage === 'function' && saveBtn) {
+        BriefMessage('Pick your name from the List in order to submit a score', saveBtn);
+      } else {
+        this.showMessage('Pick your name from the List in order to submit a score', false);
+      }
+      return;
+    }
+
     if (!course) {
       this.showMessage('Please select a course', false);
       return;
@@ -1095,6 +1143,7 @@ const ScorecardPage = {
       : new Date().toISOString().split('T')[0];
     
     const scoreData = {
+      playerId: this.currentPlayerId,
       playerName: playerName,
       course: course,
       date: date,
@@ -1188,6 +1237,14 @@ const ScorecardPage = {
     this._lastPlayerNameKey = this.normalizeName(score && score.playerName ? score.playerName : '');
     this.updateDeleteButtonVisibility();
 
+    const playerInput = document.getElementById('player-name');
+    if (playerInput && score.playerName) playerInput.value = score.playerName;
+    if (score.playerId) {
+      this.currentPlayerId = score.playerId;
+    } else {
+      this.fillHandicapFromPlayer();
+    }
+
     const handicapInput = document.getElementById('handicap');
     if (handicapInput) handicapInput.value = score.handicap;
 
@@ -1243,6 +1300,7 @@ const ScorecardPage = {
     const playerInput = document.getElementById('player-name');
     if (playerInput && draft.playerName !== undefined) playerInput.value = draft.playerName;
     this._lastPlayerNameKey = this.normalizeName(draft.playerName);
+    this.fillHandicapFromPlayer();
 
     const handicapInput = document.getElementById('handicap');
     if (handicapInput && draft.handicap !== undefined) handicapInput.value = draft.handicap;

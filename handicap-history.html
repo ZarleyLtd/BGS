@@ -4,20 +4,25 @@
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Gallery - Bushwhackers @ the Botanic</title>
+    <title>Handicap History - Bushwhackers @ the Botanic</title>
     <meta
       name="description"
-      content="Gallery of photos from Bushwhackers @ the Botanic Golf Society events."
+      content="View handicap adjustment history by player for Bushwhackers @ the Botanic Golf Society."
     />
     <link rel="stylesheet" href="assets/css/style.css" />
-    <link rel="stylesheet" href="assets/css/gallery.css" />
-    <noscript>
-      <style>
-        img[loading] {
-          opacity: 1;
-        }
-      </style>
-    </noscript>
+    <style>
+      .hc-page { max-width: 1100px; margin: 2em auto; padding: 0 0.5rem; }
+      .hc-player-picker { margin-bottom: 1.5em; }
+      .hc-player-picker label { display: block; margin-bottom: 0.35em; font-weight: 600; }
+      .hc-player-picker select { width: 100%; max-width: 420px; padding: 0.5em; font-size: 1em; }
+      .hc-timeline-table { width: 100%; border-collapse: collapse; font-size: 0.92em; }
+      .hc-timeline-table th, .hc-timeline-table td { padding: 0.5em 0.6em; border-bottom: 1px solid #e8e8e8; text-align: left; }
+      .hc-timeline-table th { color: #169179; font-weight: 600; border-bottom: 2px solid #169179; }
+      .hc-timeline-table th.hc-col-pos,
+      .hc-timeline-table td.hc-col-pos { width: 1%; white-space: nowrap; text-align: center; }
+      .hc-empty { color: #666; }
+      .loading { text-align: center; color: #666; padding: 1em; }
+    </style>
   </head>
 
   <body class="page-template has-hero-banner">
@@ -70,14 +75,22 @@
           </figure>
           <header class="hero__content hero__content--overlay">
             <div class="wrapper">
-              <h1>Gallery</h1>
+              <h1>Handicap History</h1>
             </div>
           </header>
         </div>
         <div class="entry-wrapper content__entry">
           <section class="hero hero--image">
-            <div id="gallery-app">
-              <p class="gallery-loading" style="text-align: center; margin: 2em 0;">Loading gallery…</p>
+            <div class="wrapper hc-page">
+              <div class="hc-player-picker">
+                <label for="hc-player-select">Player</label>
+                <select id="hc-player-select">
+                  <option value="">Loading players…</option>
+                </select>
+              </div>
+              <div id="hc-history-timeline">
+                <p class="hc-empty">Select a player to view handicap history.</p>
+              </div>
             </div>
           </section>
         </div>
@@ -122,9 +135,13 @@
         relatedContainerForOverlayMenuSelector: ".top",
       };
     </script>
-    <script src="assets/js/config/gallery-config.js"></script>
     <script src="assets/js/utils/nav-active.js"></script>
-    <script src="assets/js/pages/gallery.js"></script>
+    <script src="assets/js/config/app-config.js"></script>
+    <script src="assets/js/utils/api-client.js"></script>
+    <script src="assets/js/utils/bgs-data.js"></script>
+    <script src="assets/js/utils/formatters.js"></script>
+    <script src="assets/js/utils/handicap-rules.js"></script>
+    <script src="assets/js/pages/handicap-history.js"></script>
     <script src="assets/js/main.js"></script>
   </body>
 </html>

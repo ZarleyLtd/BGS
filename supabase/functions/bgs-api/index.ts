@@ -21,6 +21,11 @@ function toInt(v: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function toNum(v: unknown, fallback = 0): number {
+  const n = parseFloat(String(v ?? ""));
+  return Number.isFinite(n) ? n : fallback;
+}
+
 function normalizeName(name: string): string {
   if (!name) return "";
   return name.toLowerCase().replace(/\s+/g, "");
@@ -62,8 +67,93 @@ function padIntArray18(arr: unknown): number[] {
   return out;
 }
 
-function generatePlayerId(): string {
-  return `p_${Math.random().toString(36).slice(2, 10)}`;
+function isBulkDiscountRow(row: {
+  outingLabel?: string;
+  outing_label?: string;
+  reason?: string;
+}): boolean {
+  const label = String(row.outingLabel || row.outing_label || row.reason || "");
+  return /bulk\s*discount/i.test(label);
+}
+
+function historySortKey(row: {
+  effectiveDate?: string;
+  effective_date?: string;
+  seasonYear?: number | null;
+  season_year?: number | null;
+  outingLabel?: string;
+  outing_label?: string;
+  reason?: string;
+}): string {
+  const syRaw = row.seasonYear ?? row.season_year;
+  const sy = syRaw != null ? Number(syRaw) : null;
+  if (isBulkDiscountRow(row) && sy != null) {
+    return `${sy}-01-01`;
+  }
+  const effRaw = row.effectiveDate || row.effective_date;
+  const eff = effRaw ? String(effRaw).trim().slice(0, 10) : "";
+  if (eff && sy != null) {
+    const ey = parseInt(eff.slice(0, 4), 10);
+    if (!isNaN(ey) && ey > sy) return eff;
+  }
+  if (eff) return eff;
+  if (sy != null) {
+    const label = String(row.outingLabel || row.outing_label || "");
+    const r = label.match(/^R(\d+)/i);
+    const round = r ? parseInt(r[1], 10) : 0;
+    const mm = String(Math.min(12, Math.max(1, Math.ceil(round / 2) + 1))).padStart(2, "0");
+    const dd = String(Math.min(28, Math.max(1, round * 2))).padStart(2, "0");
+    return `${sy}-${mm}-${dd}`;
+  }
+  return "0000-01-01";
+}
+
+function historySortTiebreaker(
+  a: { outingLabel?: string; outing_label?: string; reason?: string },
+  b: { outingLabel?: string; outing_label?: string; reason?: string },
+): number {
+  const aBulk = isBulkDiscountRow(a);
+  const bBulk = isBulkDiscountRow(b);
+  if (aBulk !== bBulk) return aBulk ? -1 : 1;
+  const aLabel = String(a.outingLabel || a.outing_label || "");
+  const bLabel = String(b.outingLabel || b.outing_label || "");
+  const ar = aLabel.match(/^R(\d+)/i);
+  const br = bLabel.match(/^R(\d+)/i);
+  if (ar && br) return parseInt(ar[1], 10) - parseInt(br[1], 10);
+  if (ar) return 1;
+  if (br) return -1;
+  return aLabel.localeCompare(bLabel);
+}
+
+function sortHandicapHistoryChronological(rows: unknown[]): unknown[] {
+  return rows.slice().sort((a: any, b: any) => {
+    const ak = historySortKey(a);
+    const bk = historySortKey(b);
+    if (ak !== bk) return ak.localeCompare(bk);
+    return historySortTiebreaker(a, b);
+  });
+}
+
+function mapHandicapAdjustmentRow(row: any, playerNames: Record<string, string> = {}) {
+  const playerId = String(row.player_id || "");
+  const outingLabel = String(row.outing_label || "");
+  return {
+    adjustmentId: row.adjustment_id,
+    playerId,
+    playerName: playerNames[playerId] || row.players?.player_name || playerId,
+    effectiveDate: row.effective_date ? toDateString(row.effective_date) : "",
+    seasonYear: row.season_year ?? null,
+    source: row.source || "",
+    outingId: row.outing_id || "",
+    outingLabel,
+    courseName: row.outings?.course_name || outingLabel.replace(/^R\d+\s*[-–—]\s*/i, "").trim(),
+    position: row.position ?? null,
+    amount: row.amount != null ? String(row.amount) : "0",
+    indexBefore: row.index_before != null ? String(row.index_before) : "0",
+    indexAfter: row.index_after != null ? String(row.index_after) : "0",
+    reason: row.reason || "",
+    createdAt: row.created_at || "",
+  };
 }
 
 /** Parse `courses.par_indx`: 18 pars + 18 stroke indexes (comma-separated). Optional leading course name token if length >= 37. */
@@ -205,33 +295,70 @@ async function checkExistingScore(
   return { success: true, exists: true, score: mapScoreRow(row) };
 }
 
-async function resolveOrCreatePlayerId(
+class ClientError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ClientError";
+  }
+}
+
+async function resolvePlayerId(
   sb: ReturnType<typeof createClient>,
-  playerName: string,
+  args: Record<string, unknown>,
 ): Promise<string> {
+  const playerId = String(args.playerId || "").trim();
+  if (playerId) return playerId;
+  const playerName = String(args.playerName || "").trim();
+  if (!playerName) return "";
   const want = normalizeName(playerName);
-  const { data: players, error } = await sb.from("players").select("player_id, player_name").eq(
-    "society_id",
-    SOCIETY_ID,
-  );
+  const { data: players, error } = await sb
+    .from("players")
+    .select("player_id, player_name")
+    .eq("society_id", SOCIETY_ID);
   if (error) throw new Error(error.message);
-  const found = (players || []).find((p: { player_name: string }) =>
+  const matches = (players || []).filter((p: { player_name: string }) =>
     normalizeName(String(p.player_name || "")) === want
   );
-  if (found) return String(found.player_id);
+  if (!matches.length) return "";
+  if (matches.length > 1) {
+    throw new ClientError(`Multiple players match "${playerName}"; contact an admin`);
+  }
+  return String(matches[0].player_id || "").trim();
+}
 
-  const playerId = generatePlayerId();
-  const now = new Date().toISOString();
-  const { error: insErr } = await sb.from("players").insert({
-    society_id: SOCIETY_ID,
-    player_id: playerId,
-    player_name: playerName,
-    handicap: 0,
-    created_at: now,
-    updated_at: now,
+async function getHandicapHistory(
+  sb: ReturnType<typeof createClient>,
+  args: Record<string, unknown>,
+) {
+  const filterPlayerId = await resolvePlayerId(sb, args);
+  const requestedPlayer = String(args.playerId || args.playerName || "").trim();
+  if (requestedPlayer && !filterPlayerId) {
+    return { success: true, adjustments: [], playerId: null };
+  }
+  let query = sb
+    .from("handicap_adjustments")
+    .select("*")
+    .eq("society_id", SOCIETY_ID);
+  if (filterPlayerId) query = query.eq("player_id", filterPlayerId);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+
+  const playerNames: Record<string, string> = {};
+  const { data: playerRows, error: pErr } = await sb
+    .from("players")
+    .select("player_id, player_name")
+    .eq("society_id", SOCIETY_ID);
+  if (pErr) throw new Error(pErr.message);
+  (playerRows || []).forEach((p: { player_id: string; player_name: string }) => {
+    playerNames[p.player_id] = p.player_name;
   });
-  if (insErr) throw new Error(insErr.message);
-  return playerId;
+
+  const rows = (data || []).map((row) => mapHandicapAdjustmentRow(row, playerNames));
+  return {
+    success: true,
+    adjustments: sortHandicapHistoryChronological(rows),
+    playerId: filterPlayerId || null,
+  };
 }
 
 async function resolveOutingIdForDateAndCourse(
@@ -253,13 +380,6 @@ async function resolveOutingIdForDateAndCourse(
   return match ? String(match.outing_id) : null;
 }
 
-class ClientError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ClientError";
-  }
-}
-
 async function saveScore(sb: ReturnType<typeof createClient>, data: Record<string, unknown>) {
   const playerName = String(data.playerName || "").trim();
   const course = String(data.course || "").trim();
@@ -276,7 +396,10 @@ async function saveScore(sb: ReturnType<typeof createClient>, data: Record<strin
     );
   }
 
-  const playerId = await resolveOrCreatePlayerId(sb, playerName);
+  const playerId = await resolvePlayerId(sb, { playerId: data.playerId, playerName });
+  if (!playerId) {
+    throw new ClientError("Pick your name from the list in order to submit a score");
+  }
   const now = new Date().toISOString();
 
   const { data: existing, error: exErr } = await sb
@@ -461,16 +584,24 @@ async function getCourseDefsObject(sb: ReturnType<typeof createClient>) {
 async function getSocietyPlayers(sb: ReturnType<typeof createClient>) {
   const { data, error } = await sb
     .from("players")
-    .select("player_id, player_name, visitor")
+    .select("player_id, player_name, handicap, handicap_index, visitor")
     .eq("society_id", SOCIETY_ID)
     .order("player_name");
   if (error) throw new Error(error.message);
   return {
     success: true,
     players: (data || []).map(
-      (p: { player_id: string; player_name: string; visitor?: boolean | null }) => ({
+      (p: {
+        player_id: string;
+        player_name: string;
+        handicap?: number | null;
+        handicap_index?: number | null;
+        visitor?: boolean | null;
+      }) => ({
         playerId: p.player_id,
         playerName: p.player_name,
+        handicap: p.handicap ?? 0,
+        handicapIndex: toNum(p.handicap_index, p.handicap ?? 0),
         visitor: p.visitor === true,
       }),
     ),
@@ -546,6 +677,7 @@ async function dispatchGet(sb: ReturnType<typeof createClient>, action: string, 
   if (action === "getNextOuting") return await getNextOuting(sb);
   if (action === "loadScores") return await loadScores(sb, args);
   if (action === "checkExistingScore") return await checkExistingScore(sb, args);
+  if (action === "getHandicapHistory") return await getHandicapHistory(sb, args);
   return { success: false, error: `Unknown action: ${action}` };
 }
 
@@ -567,6 +699,7 @@ async function dispatchPost(
   if (action === "getCourseDefs") return await getCourseDefsObject(sb);
   if (action === "getSocietyPlayers") return await getSocietyPlayers(sb);
   if (action === "getNextOuting") return await getNextOuting(sb);
+  if (action === "getHandicapHistory") return await getHandicapHistory(sb, data);
   return { success: false, error: `Unknown action: ${action}` };
 }
 
