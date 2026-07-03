@@ -124,6 +124,12 @@ const ScorecardPage = {
   currentPlayerId: null,
   playersWithHandicap: [],
 
+  /** Full outings list (from getOutings) used to resolve the outing for a selected course. */
+  societyOutings: [],
+
+  /** Selected outing { outingId, date, time, courseName } - the outing a new score is saved against. */
+  currentOuting: null,
+
   /** When an existing score is loaded (loadScoreIntoForm), store it here for "Already recorded" check and delete. */
   _loadedExistingScore: null,
 
@@ -138,6 +144,9 @@ const ScorecardPage = {
 
     // Load courses from Google Sheet first
     await this.loadCoursesFromSheet();
+
+    // Load the full outings list so we can resolve which outing a score belongs to.
+    await this.loadOutings();
 
     // Try to set default course based on next outing
     await this.setDefaultCourseFromNextOuting();
@@ -189,6 +198,9 @@ const ScorecardPage = {
     // Set up event listeners
     this.setupEventListeners();
 
+    // Resolve the outing for the initially selected course.
+    this.setCurrentOutingFromCourse();
+
     // Focus Name field when page is first presented (desktop only)
     // On touch devices, skip auto-focus so the mobile keyboard doesn't open until the user taps the field
     requestAnimationFrame(() => {
@@ -224,6 +236,90 @@ const ScorecardPage = {
     } catch (error) {
       console.warn('Failed to load courses from sheet, using hardcoded courses:', error);
       // Keep existing hardcoded courses as fallback
+    }
+  },
+
+  /**
+   * Load the full outings list (society botanic) so a score can be tied to the correct outing.
+   */
+  loadOutings: async function() {
+    try {
+      if (typeof BgsData === 'undefined' || !AppConfig.apiUrl) {
+        console.warn('bgs-api not configured, outings list will be empty');
+        return;
+      }
+      const res = await BgsData.getOutings();
+      this.societyOutings = (res && res.outings) || [];
+      console.log(`Loaded ${this.societyOutings.length} outing(s) for society`);
+    } catch (e) {
+      console.warn('Failed to load outings:', e);
+      this.societyOutings = [];
+    }
+  },
+
+  /**
+   * Parse an outing date + time into a Date for comparison.
+   * Outings from bgs-api use "YYYY-MM-DD" dates and "HH:MM" (or empty) times.
+   */
+  parseOutingDateTime: function(dateStr, timeStr) {
+    if (!dateStr) return null;
+    let raw = String(dateStr).trim();
+    const gmtIdx = raw.search(/\s(00:00:00|GMT|\d{2}:\d{2}:\d{2})/);
+    if (gmtIdx !== -1) raw = raw.substring(0, gmtIdx).trim();
+    let dateOnly = raw.split('T')[0];
+    if (dateOnly.indexOf('-') === -1) dateOnly = raw;
+    const timePart = (timeStr && String(timeStr).trim()) ? String(timeStr).trim() : '00:00';
+    let d = new Date(dateOnly + 'T' + timePart);
+    if (!isNaN(d.getTime()) && d.getFullYear() >= 2000 && d.getFullYear() <= 2100) return d;
+    d = new Date(dateOnly);
+    if (!isNaN(d.getTime()) && d.getFullYear() >= 2000 && d.getFullYear() <= 2100) return d;
+    return null;
+  },
+
+  /**
+   * Resolve currentOuting from the selected course using the outings list:
+   * prefer the next upcoming outing for that course, otherwise the most recent past one.
+   */
+  setCurrentOutingFromCourse: function() {
+    const course = this.currentCourse;
+    const outings = this.societyOutings || [];
+    if (!course || outings.length === 0) {
+      this.currentOuting = null;
+      return;
+    }
+    const norm = this.normalizeCourseKey(course);
+    const now = Date.now();
+    const fiveHoursMs = 5 * 60 * 60 * 1000;
+
+    let next = null;
+    for (let i = 0; i < outings.length; i++) {
+      if (this.normalizeCourseKey(outings[i].courseName) !== norm) continue;
+      const start = this.parseOutingDateTime(outings[i].date, outings[i].time);
+      if (!start) continue;
+      if (start.getTime() + fiveHoursMs > now) {
+        next = outings[i];
+        break;
+      }
+    }
+    if (!next) {
+      for (let j = outings.length - 1; j >= 0; j--) {
+        if (this.normalizeCourseKey(outings[j].courseName) !== norm) continue;
+        next = outings[j];
+        break;
+      }
+    }
+
+    if (next) {
+      const dateStr = String(next.date || '').trim();
+      const timeStr = String(next.time || '').trim();
+      this.currentOuting = {
+        outingId: next.outingId,
+        date: dateStr,
+        time: timeStr,
+        courseName: String(next.courseName || '').trim()
+      };
+    } else {
+      this.currentOuting = null;
     }
   },
 
@@ -405,6 +501,7 @@ const ScorecardPage = {
     if (courseSelect) {
       courseSelect.addEventListener('change', (e) => {
         this.currentCourse = e.target.value;
+        this.setCurrentOutingFromCourse();
         if (this.currentCourse) {
           this.updateCourseData();
           this.clearInputs();
@@ -1137,10 +1234,21 @@ const ScorecardPage = {
     const totalScore = OUTtotScore + INtotScore;
     const totalPoints = OUTtotPts + INtotPts;
     
-    // When editing an existing score, preserve the originally recorded date.
+    // Determine the date the score is saved against. The backend resolves the outing
+    // from (date + course), so this must be an actual outing date, never "today".
+    // Priority: the date of an already-loaded score (editing) → the resolved outing for
+    // this course → (as a last resort) re-resolve from the course now.
+    if (!this.currentOuting) {
+      this.setCurrentOutingFromCourse();
+    }
     const date = (this._loadedExistingScore && this._loadedExistingScore.date)
       ? this._loadedExistingScore.date
-      : new Date().toISOString().split('T')[0];
+      : (this.currentOuting && this.currentOuting.date ? this.currentOuting.date : '');
+
+    if (!date) {
+      this.showMessage('No outing found for this course. Please add the outing in the admin first.', true);
+      return;
+    }
     
     const scoreData = {
       playerId: this.currentPlayerId,
@@ -1294,6 +1402,7 @@ const ScorecardPage = {
       if (courseSelect.value === draft.course) {
         this.currentCourse = draft.course;
         this.updateCourseData();
+        this.setCurrentOutingFromCourse();
       }
     }
 
