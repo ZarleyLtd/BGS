@@ -12,7 +12,14 @@
     <link rel="stylesheet" href="assets/css/style.css" />
     <style>
       /* === Leaderboard layout (ported from theGolfApp; society-specific selectors removed) === */
-      :root { --lb-accent: #169179; --lb-breakpoint: 600px; }
+      :root {
+        --lb-accent: #169179;
+        --lb-breakpoint: 600px;
+        --lb-visitor-bg: #c5e8df;
+        --lb-visitor-bg-hover: #aedccf;
+        --lb-visitor-accent: #2a8f74;
+        --lb-visitor-text: #1a3d36;
+      }
 
       .content .entry-wrapper.content__entry {
         padding-left: 0.25rem;
@@ -88,7 +95,7 @@
       }
       .lb-overall-grid {
         display: grid;
-        grid-template-columns: 4em 1fr 12em;
+        grid-template-columns: 4em minmax(0, 1fr) 3.5em;
         background: #fff;
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         border-radius: 8px;
@@ -109,7 +116,12 @@
         text-transform: uppercase;
         letter-spacing: 0.5px;
       }
-      .lb-overall-grid-header span:last-child { text-align: right; }
+      .lb-overall-grid-header span:last-child { text-align: right; white-space: nowrap; }
+      .lb-overall-grid-row > span:nth-child(2) {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      .lb-overall-grid-row .text-right { white-space: nowrap; }
       .lb-overall-grid-row {
         display: grid;
         grid-template-columns: subgrid;
@@ -353,6 +365,48 @@
       .lb-detail-strokes-2s { background: var(--lb-accent); color: #fff; border-radius: 2px; }
       .lb-detail-par { font-size: 0.9em; }
       .lb-detail-index { font-size: 0.75em; color: #666; }
+
+      /* --- Per-outing Visitors section (theGolfApp visitor palette) --- */
+      .lb-visitors-section { margin-top: 1.5em; }
+      .lb-subsection-title--visitors {
+        font-size: 1.1em;
+        font-weight: 600;
+        color: var(--lb-visitor-text);
+        margin: 0 0 0.5em 0;
+        padding-bottom: 0.35em;
+        border-bottom: 2px solid var(--lb-visitor-bg);
+      }
+      .lb-outing-block-wrap--visitors {
+        background: #fff;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .lb-outing-header--visitors {
+        background: var(--lb-visitor-bg);
+        color: var(--lb-visitor-text);
+      }
+      .lb-outing-block-wrap--visitors .lb-outing-main {
+        background: #f7fcfa;
+      }
+      .lb-outing-block-wrap--visitors .lb-outing-main:hover {
+        background: var(--lb-visitor-bg-hover);
+      }
+      .lb-outing-block-wrap--visitors .lb-outing-main .lb-cell-pos,
+      .lb-outing-block-wrap--visitors .lb-outing-main .lb-cell-pts {
+        color: var(--lb-visitor-accent);
+      }
+      .leaderboard-table--visitors thead {
+        background: var(--lb-visitor-bg);
+        color: var(--lb-visitor-text);
+      }
+      .leaderboard-table--visitors tbody tr:hover {
+        background-color: #f7fcfa;
+      }
+      .leaderboard-table--visitors .leaderboard-position,
+      .leaderboard-table--visitors .leaderboard-points {
+        color: var(--lb-visitor-accent);
+      }
 
       /* --- Utilities --- */
       .lb-par3-detail { color: #888; font-size: 0.9em; }

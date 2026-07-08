@@ -161,7 +161,7 @@ const LeaderboardPage = {
         overallParts.push('<p class="lb-subsection-title">' + this.escapeHtml(overallSubtitle) + '</p>');
 
         overallParts.push('<div class="lb-overall-grid">');
-        overallParts.push('<div class="lb-overall-grid-header"><span>Pos</span><span>Name</span><span>Total Points</span></div>');
+        overallParts.push('<div class="lb-overall-grid-header"><span>Pos</span><span>Name</span><span>Pts</span></div>');
 
         for (let rg = 0; rg < rankedOverallLeaders.length; rg++) {
           const group = rankedOverallLeaders[rg];
@@ -701,6 +701,18 @@ const LeaderboardPage = {
         }
 
         sectionParts.push('</tbody></table></div>');
+
+        const visitorScores = outingScores.filter(s => isVisitorScore(s));
+        if (visitorScores.length > 0) {
+          const rankedVisitors = this.rankWithCountback(
+            visitorScores,
+            this.compareCountbackOverall.bind(this),
+            Math.max(topNCount, 1),
+            this.getCountbackLabelOverall.bind(this)
+          );
+          this.appendVisitorsOutingSection(sectionParts, rankedVisitors, ords, parIndexPairs);
+        }
+
         sectionParts.push('</div>'); // lb-section
 
         panelParts.push(sectionParts.join(''));
@@ -1024,6 +1036,69 @@ const LeaderboardPage = {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
+  },
+
+  /** Visitors-only 18-hole top-N board (mobile blocks + desktop table) at bottom of an outing panel. */
+  appendVisitorsOutingSection: function(parts, rankedVisitors, ords, parIndexPairs) {
+    parts.push('<div class="lb-visitors-section">');
+    parts.push('<h3 class="lb-subsection-title lb-subsection-title--visitors">Visitors</h3>');
+
+    parts.push('<div class="lb-outing-block-wrap lb-outing-block-wrap--visitors">');
+    parts.push('<div class="lb-outing-header lb-outing-header--visitors"><span>Pos</span><span>Name</span><span>Hcp</span><span style="text-align:right">Points</span></div>');
+
+    for (let r = 0; r < rankedVisitors.length; r++) {
+      if (!ords[r]) continue;
+      const group = rankedVisitors[r];
+      const ord = group.label;
+      for (let gx = 0; gx < group.scores.length; gx++) {
+        const sc = group.scores[gx];
+        const detailHtml = this.buildHoleDetailHtml(sc, parIndexPairs);
+        const escapedDetail = detailHtml
+          .replace(/"/g, '&quot;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+
+        parts.push('<div class="lb-outing-block">');
+        parts.push('<div class="lb-outing-main lb-outing-row" data-detail-html="' + escapedDetail + '">');
+        parts.push('<span class="lb-cell-pos">' + this.escapeHtml(ord) + '</span>');
+        parts.push('<span class="lb-cell-name">' + this.escapeHtml(this.displayText(sc.playerName)) + '</span>');
+        parts.push('<span class="lb-cell-hcp">' + this.formatNumber(sc.handicap) + '</span>');
+        parts.push('<span class="lb-cell-pts">' + this.formatPointsWithCountback(sc.totalPoints, group.countbackLabel) + '</span>');
+        parts.push('</div>');
+        parts.push('<div class="lb-hole-detail-panel"></div>');
+        parts.push('</div>');
+      }
+    }
+
+    parts.push('</div>');
+
+    parts.push('<div class="lb-table-scroll-wrap"><table class="leaderboard-table leaderboard-table--outing leaderboard-table--visitors">');
+    parts.push('<thead><tr><th>Pos</th><th>Name</th><th class="text-center">Hcp</th><th class="text-right">Points</th></tr></thead><tbody>');
+
+    for (let r = 0; r < rankedVisitors.length; r++) {
+      if (!ords[r]) continue;
+      const group = rankedVisitors[r];
+      const ord = group.label;
+      for (let gx = 0; gx < group.scores.length; gx++) {
+        const sc = group.scores[gx];
+        const detailHtml = this.buildHoleDetailHtml(sc, parIndexPairs);
+        const escapedForAttr = detailHtml
+          .replace(/"/g, '&quot;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+
+        parts.push('<tr class="lb-outing-row" data-detail-html="' + escapedForAttr + '">');
+        parts.push('<td class="leaderboard-position">' + this.escapeHtml(ord) + '</td>');
+        parts.push('<td class="leaderboard-player-name lb-name-cell">' + this.escapeHtml(this.displayText(sc.playerName)) + '</td>');
+        parts.push('<td class="text-center leaderboard-section">' + this.formatNumber(sc.handicap) + '</td>');
+        parts.push('<td class="text-right leaderboard-points">' + this.formatPointsWithCountback(sc.totalPoints, group.countbackLabel) + '</td>');
+        parts.push('</tr>');
+        parts.push('<tr class="lb-detail-row lb-detail-row--table"><td colspan="4">' + detailHtml + '</td></tr>');
+      }
+    }
+
+    parts.push('</tbody></table></div>');
+    parts.push('</div>');
   },
 
   formatNumber: function(num) {
