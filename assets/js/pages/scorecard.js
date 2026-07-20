@@ -1465,7 +1465,14 @@ const ScorecardPage = {
   },
 
 
-  loadScoreIntoForm: function(score) {
+  /**
+   * Apply the bookkeeping side of an existing score (delete-button visibility,
+   * "already recorded" comparisons, and the scorecard photo) WITHOUT touching the
+   * hole/name/handicap inputs currently on screen. Used both by loadScoreIntoForm
+   * (which does also apply holes/name/handicap) and by refreshExistingScoreMetadata
+   * (which must not clobber in-progress, not-yet-saved hole edits — see there).
+   */
+  _applyExistingScoreMetadata: function(score) {
     this._loadedExistingScore = score;
     this._lastPlayerNameKey = this.normalizeName(score && score.playerName ? score.playerName : '');
     this._pendingImage = null;
@@ -1478,6 +1485,10 @@ const ScorecardPage = {
         ScorecardPhotoUpload.clearImage();
       }
     }
+  },
+
+  loadScoreIntoForm: function(score) {
+    this._applyExistingScoreMetadata(score);
 
     const playerInput = document.getElementById('player-name');
     if (playerInput && score.playerName) playerInput.value = score.playerName;
@@ -1501,6 +1512,44 @@ const ScorecardPage = {
 
     this.calculateScores();
     document.getElementById('scorecard-form')?.scrollIntoView({ behavior: 'smooth' });
+  },
+
+  /**
+   * Silently re-check the server for an existing score for the current name/course and
+   * apply just its metadata (delete-button visibility, "already recorded" state, and the
+   * scorecard photo) — without touching the hole/name/handicap inputs already on screen.
+   *
+   * Needed after programmatically setting course/name (e.g. restoring a draft when
+   * transferring between the standard and side-scroll views): setting `.value` directly
+   * doesn't fire the `blur` events that normally trigger checkForExistingScore(), so
+   * without this, a photo already attached to that score wouldn't show up until the
+   * user manually re-triggers a blur (e.g. tapping into and out of the Name field).
+   */
+  refreshExistingScoreMetadata: function() {
+    const playerName = document.getElementById('player-name')?.value.trim();
+    const courseSelect = document.getElementById('course-select');
+    const course = courseSelect ? courseSelect.value : this.currentCourse;
+    if (!playerName || !course) return;
+
+    ApiClient.post('checkExistingScore', {
+      playerName: playerName,
+      course: course
+    })
+      .then((result) => {
+        if (result.exists && result.score) {
+          this._applyExistingScoreMetadata(result.score);
+        } else {
+          this._loadedExistingScore = null;
+          this.updateDeleteButtonVisibility();
+          if (typeof ScorecardPhotoUpload !== 'undefined') ScorecardPhotoUpload.clearImage();
+        }
+      })
+      .catch((error) => {
+        // Silently fail - API might not be configured
+        if (!error.message.includes('API URL not configured')) {
+          console.error('Error refreshing existing score metadata:', error);
+        }
+      });
   },
 
   /**
@@ -1558,6 +1607,11 @@ const ScorecardPage = {
 
     this.calculateScores();
     document.getElementById('scorecard-form')?.scrollIntoView({ behavior: 'smooth' });
+
+    // Course/name were just set programmatically above (no blur fired), so the usual
+    // checkForExistingScore() trigger never ran — fetch the photo (and delete-button /
+    // already-recorded state) explicitly, without disturbing the just-restored hole values.
+    this.refreshExistingScoreMetadata();
 
     const holeNum = (draft.focusedHole >= 1 && draft.focusedHole <= 18) ? draft.focusedHole : null;
     const toFocus = holeNum
