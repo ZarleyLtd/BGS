@@ -35,32 +35,60 @@
       .scorecard-header {
         position: relative;
         margin-bottom: 1.5em;
-        display: grid;
-        grid-template-columns: 3fr 1fr;
+        display: flex;
+        flex-direction: column;
         gap: 0.5em;
-        align-items: center;
       }
 
-      .scorecard-header .course-select-wrapper {
-        grid-column: 1 / -1;
-        order: -1;
+      .scorecard-header-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5em;
+      }
+
+      /* Course and Name sit in separate rows, each with their own flex split, so the
+         Course dropdown (row 1, only sharing space with the compact photo button) can
+         grow wider than the Name field (row 2, sharing space with the H/C field) when
+         there's room — rather than being forced to match Name's width via shared grid columns. */
+      .scorecard-header-row--top .course-select-wrapper {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+
+      .scorecard-header-row--top .scorecard-photo-wrapper {
+        flex: 0 0 auto;
+      }
+
+      .scorecard-header-row--bottom .name-field-wrapper {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+
+      .scorecard-header-row--bottom .handicap-field-wrapper {
+        flex: 0 0 auto;
+        min-width: 5.5em;
       }
 
       @media (max-width: 600px) {
-        .scorecard-header {
+        .scorecard-header,
+        .scorecard-header-row {
           gap: 0.4em;
         }
       }
 
       @media (max-width: 480px) {
-        .scorecard-header {
+        .scorecard-header,
+        .scorecard-header-row {
           gap: 0.3em;
+        }
+        .scorecard-header {
           margin-bottom: 1em;
         }
       }
 
       @media (max-width: 360px) {
-        .scorecard-header {
+        .scorecard-header,
+        .scorecard-header-row {
           gap: 0.25em;
         }
       }
@@ -96,7 +124,10 @@
         margin: 0;
       }
 
-      .scorecard-header > div {
+      .scorecard-header .course-select-wrapper,
+      .scorecard-header .scorecard-photo-wrapper,
+      .scorecard-header .name-field-wrapper,
+      .scorecard-header .handicap-field-wrapper {
         display: flex;
         align-items: center;
         gap: 0.5em;
@@ -104,6 +135,213 @@
 
       .scorecard-header .course-select-wrapper {
         margin-bottom: 0;
+      }
+
+      /* Scorecard photo upload button — sits to the right of the (now shortened)
+         Course dropdown, directly above the Handicap field. */
+      .scorecard-photo-wrapper {
+        justify-content: flex-end;
+      }
+
+      .scorecard-photo-btn {
+        position: relative;
+        width: 100%;
+        height: 2.4em;
+        min-width: 2.6em;
+        max-width: 4.6em;
+        margin-left: auto;
+        padding: 0;
+        border: 1px solid var(--light, #CACBCF);
+        border-radius: 3px;
+        background: var(--white, #fff);
+        color: var(--gray, #57585a);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        box-sizing: border-box;
+      }
+
+      .scorecard-photo-btn:hover {
+        border-color: var(--color, #D73A42);
+        color: var(--color, #D73A42);
+      }
+
+      .scorecard-photo-btn:disabled {
+        opacity: 0.7;
+        cursor: default;
+      }
+
+      .scorecard-photo-btn__icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .scorecard-photo-btn__thumb {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: none;
+      }
+
+      .scorecard-photo-btn--has-image {
+        border-color: #2E7D32;
+      }
+
+      .scorecard-photo-btn__spinner {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.35);
+        display: none;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .scorecard-photo-btn__spinner .spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255, 255, 255, 0.4);
+        border-top-color: var(--white, #fff);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
+      .scorecard-photo-file-input {
+        position: absolute;
+        width: 0.1px;
+        height: 0.1px;
+        opacity: 0;
+        overflow: hidden;
+        z-index: -1;
+      }
+
+      /* Action sheet: Take Photo / Choose from Gallery / Remove Photo */
+      .scorecard-photo-menu-overlay {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .scorecard-photo-menu-card {
+        background: var(--page-bg, #fff);
+        border-radius: 8px;
+        padding: 0.5em;
+        width: 90%;
+        max-width: 320px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        display: flex;
+        flex-direction: column;
+        gap: 0.4em;
+        box-sizing: border-box;
+      }
+
+      .scorecard-photo-menu-btn,
+      .scorecard-photo-menu-cancel {
+        display: block;
+        width: 100%;
+        padding: 0.7em 1em;
+        border: none;
+        border-radius: 4px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        text-align: center;
+      }
+
+      .scorecard-photo-menu-btn {
+        background: var(--lighter, #F3F3F3);
+        color: var(--dark, #17181E);
+      }
+
+      .scorecard-photo-menu-btn:hover {
+        background: #e2e2e2;
+      }
+
+      .scorecard-photo-menu-btn--danger {
+        background: rgba(184, 46, 53, 0.1);
+        color: #b82e35;
+      }
+
+      .scorecard-photo-menu-btn--danger:hover {
+        background: rgba(184, 46, 53, 0.18);
+      }
+
+      .scorecard-photo-menu-cancel {
+        background: transparent;
+        color: var(--gray, #57585a);
+        margin-top: 0.2em;
+      }
+
+      .scorecard-photo-menu-cancel:hover {
+        text-decoration: underline;
+      }
+
+      /* Full-size photo lightbox (opened by tapping the button once a photo is set) */
+      .scorecard-photo-lightbox {
+        position: fixed;
+        inset: 0;
+        z-index: 10001;
+        background: rgba(0, 0, 0, 0.88);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5em 1em;
+        box-sizing: border-box;
+      }
+
+      .scorecard-photo-lightbox__content {
+        position: relative;
+        max-width: 100%;
+        max-height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1em;
+      }
+
+      .scorecard-photo-lightbox__close {
+        position: absolute;
+        top: -1em;
+        right: -0.5em;
+        width: 2.2em;
+        height: 2.2em;
+        padding: 0;
+        font-size: 1.4rem;
+        line-height: 1;
+        color: var(--white, #fff);
+        background: rgba(0, 0, 0, 0.6);
+        border: none;
+        border-radius: 50%;
+        cursor: pointer;
+        z-index: 1;
+      }
+
+      .scorecard-photo-lightbox__close:hover {
+        background: rgba(0, 0, 0, 0.8);
+      }
+
+      .scorecard-photo-lightbox__img {
+        max-width: 100%;
+        max-height: calc(100vh - 8em);
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        display: block;
+        border-radius: 4px;
+      }
+
+      .scorecard-photo-lightbox__actions {
+        display: flex;
+        gap: 0.6em;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .scorecard-photo-lightbox__actions .scorecard-photo-menu-btn {
+        width: auto;
+        padding: 0.6em 1.2em;
       }
 
       @media (max-width: 480px) {
@@ -115,6 +353,10 @@
         .scorecard-header label {
           font-size: 0.9rem;
           margin-right: 0.3em;
+        }
+        .scorecard-photo-btn {
+          height: 2.1em;
+          max-width: 3.6em;
         }
       }
 
@@ -555,20 +797,27 @@
             <div class="scorecard-wrapper">
               <form id="scorecard-form" name="scorecard">
                 <div class="scorecard-header">
-                  <div class="course-select-wrapper">
-                    <label for="course-select">Course:</label>
-                    <select id="course-select" name="course">
-                      <option value="">Select Course</option>
-                    </select>
+                  <div class="scorecard-header-row scorecard-header-row--top">
+                    <div class="course-select-wrapper">
+                      <label for="course-select">Course:</label>
+                      <select id="course-select" name="course">
+                        <option value="">Select Course</option>
+                      </select>
+                    </div>
+                    <div class="scorecard-photo-wrapper">
+                      <button type="button" id="scorecard-photo-btn" class="scorecard-photo-btn"></button>
+                    </div>
                   </div>
-                  <div>
-                    <label for="player-name">Name:</label>
-                    <input type="text" id="player-name" name="player" list="player-datalist" maxlength="30" placeholder="Enter your name">
-                    <datalist id="player-datalist"></datalist>
-                  </div>
-                  <div>
-                    <label for="handicap">H/C:</label>
-                    <input type="number" id="handicap" name="handicap" min="0" max="54">
+                  <div class="scorecard-header-row scorecard-header-row--bottom">
+                    <div class="name-field-wrapper">
+                      <label for="player-name">Name:</label>
+                      <input type="text" id="player-name" name="player" list="player-datalist" maxlength="30" placeholder="Enter your name">
+                      <datalist id="player-datalist"></datalist>
+                    </div>
+                    <div class="handicap-field-wrapper">
+                      <label for="handicap">H/C:</label>
+                      <input type="number" id="handicap" name="handicap" min="0" max="54">
+                    </div>
                   </div>
                 </div>
 
@@ -754,6 +1003,8 @@
     <script src="assets/js/utils/courses-loader.js"></script>
     <script src="assets/js/utils/nav-active.js"></script>
     <script src="assets/js/utils/brief-message.js"></script>
+    <script src="assets/js/utils/image-compress.js"></script>
+    <script src="assets/js/components/scorecard-photo-upload.js"></script>
     <script src="assets/js/pages/scorecard.js"></script>
     <script src="assets/js/pages/scorecard-sidescroll.js"></script>
     <script src="assets/js/main.js"></script>

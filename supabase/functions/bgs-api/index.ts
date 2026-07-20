@@ -1,7 +1,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { decode as base64Decode } from "https://deno.land/std@0.208.0/encoding/base64.ts";
 
 /** BGS public site always uses this society in the shared `thegolfapp` schema. */
 const SOCIETY_ID = "botanic";
+
+/** Private Storage bucket for scorecard photos (signed URLs only — no public access). */
+const IMAGE_BUCKET = "bgs-scorecards";
+/** Seconds a signed image URL stays valid for (6 hours — covers a full outing session). */
+const IMAGE_SIGNED_URL_TTL = 21600;
 
 const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -196,6 +202,8 @@ type ScoreJoinRow = {
   back3_score?: number;
   back3_points?: number;
   score_timestamp?: string;
+  image_path?: string | null;
+  image_mime?: string | null;
   outings?: { course_name?: string; outing_date?: string } | null;
   players?: { player_name?: string } | null;
 };
@@ -230,7 +238,68 @@ function mapScoreRow(row: ScoreJoinRow): Record<string, unknown> {
     back3Score: toInt(row.back3_score, 0),
     back3Points: toInt(row.back3_points, 0),
     timestamp,
+    imagePath: row.image_path || null,
+    imageMime: row.image_mime || null,
   };
+}
+
+/** Sign a Storage path for temporary browser access (bucket is private). */
+async function getSignedImageUrl(
+  sb: ReturnType<typeof createClient>,
+  imagePath: string | null | undefined,
+): Promise<string | null> {
+  if (!imagePath) return null;
+  const { data, error } = await sb.storage
+    .from(IMAGE_BUCKET)
+    .createSignedUrl(imagePath, IMAGE_SIGNED_URL_TTL);
+  if (error) {
+    console.warn("Failed to sign scorecard image URL:", error.message);
+    return null;
+  }
+  return data?.signedUrl || null;
+}
+
+/** Attach a signed `imageUrl` to a mapped score row when it has an `imagePath`. */
+async function withImageUrl(
+  sb: ReturnType<typeof createClient>,
+  score: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const imagePath = score.imagePath as string | null;
+  if (!imagePath) return { ...score, imageUrl: null };
+  const imageUrl = await getSignedImageUrl(sb, imagePath);
+  return { ...score, imageUrl };
+}
+
+function decodeImagePayload(base64: unknown, mimeType: unknown): { bytes: Uint8Array; mime: string } | null {
+  const raw = String(base64 || "").replace(/^data:[^,]+,/, "").replace(/\s/g, "");
+  if (!raw) return null;
+  return { bytes: base64Decode(raw), mime: String(mimeType || "image/jpeg") };
+}
+
+/** Upload (or replace) the scorecard photo for one (outingId, playerId) pair. */
+async function uploadScorecardImageBytes(
+  sb: ReturnType<typeof createClient>,
+  outingId: string,
+  playerId: string,
+  bytes: Uint8Array,
+  mime: string,
+): Promise<string> {
+  const path = `scores/${outingId}-${playerId}.jpg`;
+  const { error } = await sb.storage.from(IMAGE_BUCKET).upload(path, bytes, {
+    contentType: mime,
+    upsert: true,
+  });
+  if (error) throw new Error(error.message);
+  return path;
+}
+
+async function deleteScorecardImage(
+  sb: ReturnType<typeof createClient>,
+  imagePath: string | null | undefined,
+): Promise<void> {
+  if (!imagePath) return;
+  const { error } = await sb.storage.from(IMAGE_BUCKET).remove([imagePath]);
+  if (error) console.warn("Failed to delete scorecard image:", error.message);
 }
 
 function courseMatches(a: string, b: string): boolean {
@@ -244,7 +313,7 @@ async function fetchScoresJoined(
   const { data, error } = await sb
     .from("scores")
     .select(
-      "outing_id, player_id, handicap, holes, hole_points, total_score, total_points, out_score, out_points, in_score, in_points, back6_score, back6_points, back3_score, back3_points, score_timestamp, outings!scores_outing_fk(course_name, outing_date), players!scores_player_fk(player_name)",
+      "outing_id, player_id, handicap, holes, hole_points, total_score, total_points, out_score, out_points, in_score, in_points, back6_score, back6_points, back3_score, back3_points, score_timestamp, image_path, image_mime, outings!scores_outing_fk(course_name, outing_date), players!scores_player_fk(player_name)",
     )
     .eq("society_id", SOCIETY_ID)
     .order("score_timestamp", { ascending: false })
@@ -292,7 +361,8 @@ async function checkExistingScore(
   );
   const row = matching[0];
   if (!row) return { success: true, exists: false };
-  return { success: true, exists: true, score: mapScoreRow(row) };
+  const score = await withImageUrl(sb, mapScoreRow(row));
+  return { success: true, exists: true, score };
 }
 
 class ClientError extends Error {
@@ -413,7 +483,7 @@ async function saveScore(sb: ReturnType<typeof createClient>, data: Record<strin
 
   const scoreTimestamp = existing?.score_timestamp ? String(existing.score_timestamp) : now;
 
-  const rowBody = {
+  const rowBody: Record<string, unknown> = {
     handicap: toInt(data.handicap, 0),
     holes,
     hole_points: holePoints,
@@ -431,6 +501,16 @@ async function saveScore(sb: ReturnType<typeof createClient>, data: Record<strin
     updated_at: now,
   };
 
+  // A photo picked before the first submit (no score row existed yet) is uploaded here,
+  // alongside the score, rather than creating a placeholder zero-score row earlier.
+  let imagePath: string | null = null;
+  const imagePayload = decodeImagePayload(data.imageBase64, data.imageMimeType);
+  if (imagePayload) {
+    imagePath = await uploadScorecardImageBytes(sb, outingId, playerId, imagePayload.bytes, imagePayload.mime);
+    rowBody.image_path = imagePath;
+    rowBody.image_mime = imagePayload.mime;
+  }
+
   if (existing) {
     const { error } = await sb
       .from("scores")
@@ -439,7 +519,8 @@ async function saveScore(sb: ReturnType<typeof createClient>, data: Record<strin
       .eq("outing_id", outingId)
       .eq("player_id", playerId);
     if (error) throw new Error(error.message);
-    return { success: true, message: "Score updated successfully", timestamp: scoreTimestamp };
+    const imageUrl = imagePath ? await getSignedImageUrl(sb, imagePath) : null;
+    return { success: true, message: "Score updated successfully", timestamp: scoreTimestamp, imagePath, imageUrl };
   }
 
   const { error } = await sb.from("scores").insert({
@@ -450,7 +531,88 @@ async function saveScore(sb: ReturnType<typeof createClient>, data: Record<strin
     created_at: now,
   });
   if (error) throw new Error(error.message);
-  return { success: true, message: "Score saved successfully", timestamp: scoreTimestamp };
+  const imageUrl = imagePath ? await getSignedImageUrl(sb, imagePath) : null;
+  return { success: true, message: "Score saved successfully", timestamp: scoreTimestamp, imagePath, imageUrl };
+}
+
+async function uploadScoreImage(sb: ReturnType<typeof createClient>, data: Record<string, unknown>) {
+  const playerName = String(data.playerName || "").trim();
+  const course = String(data.course || "").trim();
+  if (!playerName || !course) throw new Error("playerName and course are required");
+
+  const imagePayload = decodeImagePayload(data.base64, data.mimeType);
+  if (!imagePayload) throw new ClientError("No image supplied");
+
+  const playedOn = toDateString(data.date || new Date().toISOString().slice(0, 10));
+  const outingId = await resolveOutingIdForDateAndCourse(sb, playedOn, course);
+  if (!outingId) {
+    throw new ClientError("No outing found for this date and course in society botanic.");
+  }
+  const playerId = await resolvePlayerId(sb, { playerId: data.playerId, playerName });
+  if (!playerId) {
+    throw new ClientError("Pick your name from the list in order to attach a photo");
+  }
+
+  const { data: existing, error: exErr } = await sb
+    .from("scores")
+    .select("outing_id")
+    .eq("society_id", SOCIETY_ID)
+    .eq("outing_id", outingId)
+    .eq("player_id", playerId)
+    .maybeSingle();
+  if (exErr) throw new Error(exErr.message);
+  if (!existing) {
+    throw new ClientError("Enter and submit at least one hole score before attaching a photo");
+  }
+
+  const imagePath = await uploadScorecardImageBytes(sb, outingId, playerId, imagePayload.bytes, imagePayload.mime);
+  const { error } = await sb
+    .from("scores")
+    .update({ image_path: imagePath, image_mime: imagePayload.mime, updated_at: new Date().toISOString() })
+    .eq("society_id", SOCIETY_ID)
+    .eq("outing_id", outingId)
+    .eq("player_id", playerId);
+  if (error) throw new Error(error.message);
+
+  const imageUrl = await getSignedImageUrl(sb, imagePath);
+  return { success: true, imagePath, imageUrl };
+}
+
+async function removeScoreImage(sb: ReturnType<typeof createClient>, data: Record<string, unknown>) {
+  const playerName = String(data.playerName || "").trim();
+  const course = String(data.course || "").trim();
+  if (!playerName || !course) throw new Error("playerName and course are required");
+
+  const playedOn = toDateString(data.date || new Date().toISOString().slice(0, 10));
+  const outingId = await resolveOutingIdForDateAndCourse(sb, playedOn, course);
+  if (!outingId) {
+    throw new ClientError("No outing found for this date and course in society botanic.");
+  }
+  const playerId = await resolvePlayerId(sb, { playerId: data.playerId, playerName });
+  if (!playerId) {
+    throw new ClientError("Pick your name from the list in order to remove the photo");
+  }
+
+  const { data: existing, error: exErr } = await sb
+    .from("scores")
+    .select("image_path")
+    .eq("society_id", SOCIETY_ID)
+    .eq("outing_id", outingId)
+    .eq("player_id", playerId)
+    .maybeSingle();
+  if (exErr) throw new Error(exErr.message);
+  if (!existing) return { success: true, message: "No score found for this player/course" };
+
+  await deleteScorecardImage(sb, existing.image_path as string | null);
+
+  const { error } = await sb
+    .from("scores")
+    .update({ image_path: null, image_mime: null, updated_at: new Date().toISOString() })
+    .eq("society_id", SOCIETY_ID)
+    .eq("outing_id", outingId)
+    .eq("player_id", playerId);
+  if (error) throw new Error(error.message);
+  return { success: true, message: "Photo removed" };
 }
 
 async function deleteScore(sb: ReturnType<typeof createClient>, data: Record<string, unknown>) {
@@ -472,6 +634,8 @@ async function deleteScore(sb: ReturnType<typeof createClient>, data: Record<str
     return rowDate === searchDate && rowTs === searchTimestamp;
   });
   if (!row) return { success: false, error: "Score not found" };
+
+  await deleteScorecardImage(sb, row.image_path);
 
   const { error: delErr } = await sb
     .from("scores")
@@ -689,6 +853,8 @@ async function dispatchPost(
   const data = (body.data as Record<string, unknown>) || body;
   if (action === "saveScore") return await saveScore(sb, data);
   if (action === "deleteScore") return await deleteScore(sb, data);
+  if (action === "uploadScoreImage") return await uploadScoreImage(sb, data);
+  if (action === "removeScoreImage") return await removeScoreImage(sb, data);
   if (action === "loadScores") return await loadScores(sb, data);
   if (action === "checkExistingScore") return await checkExistingScore(sb, data);
   // Read-only actions (same as GET) — supports POST clients and form-encoded `data` JSON.

@@ -133,6 +133,14 @@ const ScorecardPage = {
   /** When an existing score is loaded (loadScoreIntoForm), store it here for "Already recorded" check and delete. */
   _loadedExistingScore: null,
 
+  /**
+   * A compressed scorecard photo picked before any score row exists yet for this
+   * player/course (i.e. `_loadedExistingScore` is null). Sent alongside the next
+   * `saveScore` call rather than creating a placeholder zero-score row.
+   * Shape: { base64: string, mimeType: string } | null
+   */
+  _pendingImage: null,
+
   // Track the last name we applied/loaded so we can clear the card when the user changes it.
   _lastPlayerNameKey: '',
 
@@ -591,6 +599,9 @@ const ScorecardPage = {
       });
     }
 
+    // Scorecard photo upload (button to the right of the Course dropdown)
+    this.setupPhotoUpload();
+
     // Save score button
     const saveBtn = document.getElementById('save-score-btn');
     if (saveBtn) {
@@ -642,6 +653,106 @@ const ScorecardPage = {
         window.location.href = sidescrollLink.getAttribute('href') || 'scorecard-sidescroll.html';
       });
     }
+  },
+
+  setupPhotoUpload: function() {
+    const btn = document.getElementById('scorecard-photo-btn');
+    if (!btn || typeof ScorecardPhotoUpload === 'undefined') return;
+    ScorecardPhotoUpload.init(btn, {
+      onPhotoSelected: (base64, mimeType) => this.handlePhotoSelected(base64, mimeType),
+      onRemoveRequested: () => this.handlePhotoRemoveRequested()
+    });
+  },
+
+  /**
+   * A photo was picked (camera or gallery) and already compressed + previewed by
+   * ScorecardPhotoUpload. If a score row already exists for this player/course,
+   * upload it immediately; otherwise hold it until the next Submit Score.
+   */
+  handlePhotoSelected: function(base64, mimeType) {
+    const btn = document.getElementById('scorecard-photo-btn');
+
+    if (!this._loadedExistingScore) {
+      this._pendingImage = { base64: base64, mimeType: mimeType };
+      if (typeof BriefMessage === 'function') {
+        BriefMessage('Photo will be saved with your score', btn);
+      }
+      return;
+    }
+
+    if (typeof ScorecardPhotoUpload !== 'undefined') ScorecardPhotoUpload.setBusy(true);
+    const playerName = document.getElementById('player-name')?.value.trim();
+    ApiClient.post('uploadScoreImage', {
+      playerId: this.currentPlayerId,
+      playerName: playerName,
+      course: this.currentCourse,
+      date: this._loadedExistingScore.date,
+      base64: base64,
+      mimeType: mimeType
+    })
+      .then((result) => {
+        if (typeof ScorecardPhotoUpload !== 'undefined') ScorecardPhotoUpload.setBusy(false);
+        this._pendingImage = null;
+        if (this._loadedExistingScore) {
+          this._loadedExistingScore.imagePath = result.imagePath || null;
+          this._loadedExistingScore.imageUrl = result.imageUrl || null;
+        }
+        if (typeof BriefMessage === 'function') BriefMessage('Photo uploaded', btn);
+      })
+      .catch((error) => {
+        if (typeof ScorecardPhotoUpload !== 'undefined') {
+          ScorecardPhotoUpload.setBusy(false);
+          // Revert the optimistic thumbnail back to whatever was previously saved (if anything).
+          if (this._loadedExistingScore && this._loadedExistingScore.imageUrl) {
+            ScorecardPhotoUpload.setImage(this._loadedExistingScore.imageUrl);
+          } else {
+            ScorecardPhotoUpload.clearImage();
+          }
+        }
+        this._pendingImage = null;
+        if (typeof BriefMessage === 'function') {
+          BriefMessage(error.message || 'Unable to upload photo', btn);
+        }
+      });
+  },
+
+  /** "Remove Photo" chosen from the action sheet. */
+  handlePhotoRemoveRequested: function() {
+    const btn = document.getElementById('scorecard-photo-btn');
+
+    if (!this._loadedExistingScore || !this._loadedExistingScore.imagePath) {
+      // Nothing persisted server-side yet (only a locally-held pending photo) — just clear it.
+      this._pendingImage = null;
+      if (typeof ScorecardPhotoUpload !== 'undefined') ScorecardPhotoUpload.clearImage();
+      return;
+    }
+
+    if (typeof ScorecardPhotoUpload !== 'undefined') ScorecardPhotoUpload.setBusy(true);
+    const playerName = document.getElementById('player-name')?.value.trim();
+    ApiClient.post('removeScoreImage', {
+      playerId: this.currentPlayerId,
+      playerName: playerName,
+      course: this.currentCourse,
+      date: this._loadedExistingScore.date
+    })
+      .then(() => {
+        if (typeof ScorecardPhotoUpload !== 'undefined') {
+          ScorecardPhotoUpload.setBusy(false);
+          ScorecardPhotoUpload.clearImage();
+        }
+        if (this._loadedExistingScore) {
+          this._loadedExistingScore.imagePath = null;
+          this._loadedExistingScore.imageUrl = null;
+        }
+        this._pendingImage = null;
+        if (typeof BriefMessage === 'function') BriefMessage('Photo removed', btn);
+      })
+      .catch((error) => {
+        if (typeof ScorecardPhotoUpload !== 'undefined') ScorecardPhotoUpload.setBusy(false);
+        if (typeof BriefMessage === 'function') {
+          BriefMessage(error.message || 'Unable to remove photo', btn);
+        }
+      });
   },
 
   updateDeleteButtonVisibility: function() {
@@ -878,6 +989,8 @@ const ScorecardPage = {
   clearInputs: function() {
     this._loadedExistingScore = null;
     this.updateDeleteButtonVisibility();
+    this._pendingImage = null;
+    if (typeof ScorecardPhotoUpload !== 'undefined') ScorecardPhotoUpload.clearImage();
     for (let i = 1; i <= 18; i++) {
       const input = document.getElementById(`hole-${i}`);
       if (input) input.value = '';
@@ -1270,6 +1383,13 @@ const ScorecardPage = {
       back3Points: BACK3totPts
     };
 
+    // A photo picked before this score row existed is held in memory (see handlePhotoSelected)
+    // and uploaded together with the score here, instead of creating a placeholder row earlier.
+    if (this._pendingImage) {
+      scoreData.imageBase64 = this._pendingImage.base64;
+      scoreData.imageMimeType = this._pendingImage.mimeType;
+    }
+
     const originalBtnText = saveBtn ? saveBtn.innerHTML : 'Submit Score';
     
     if (saveBtn) {
@@ -1308,8 +1428,13 @@ const ScorecardPage = {
           back3Points: BACK3totPts,
           // Preserve timestamp from previously loaded score (if any),
           // since backend update preserves date/time for that record.
-          timestamp: (this._loadedExistingScore && this._loadedExistingScore.timestamp) ? this._loadedExistingScore.timestamp : ''
+          timestamp: (this._loadedExistingScore && this._loadedExistingScore.timestamp) ? this._loadedExistingScore.timestamp : '',
+          // A photo just uploaded alongside this save takes precedence; otherwise keep
+          // whatever was already attached to this score (saveScore preserves it server-side).
+          imagePath: result.imagePath || (this._loadedExistingScore && this._loadedExistingScore.imagePath) || null,
+          imageUrl: result.imageUrl || (this._loadedExistingScore && this._loadedExistingScore.imageUrl) || null
         };
+        this._pendingImage = null;
         this.updateDeleteButtonVisibility();
         
         // Show user-friendly success message with points score
@@ -1343,7 +1468,16 @@ const ScorecardPage = {
   loadScoreIntoForm: function(score) {
     this._loadedExistingScore = score;
     this._lastPlayerNameKey = this.normalizeName(score && score.playerName ? score.playerName : '');
+    this._pendingImage = null;
     this.updateDeleteButtonVisibility();
+
+    if (typeof ScorecardPhotoUpload !== 'undefined') {
+      if (score && score.imageUrl) {
+        ScorecardPhotoUpload.setImage(score.imageUrl);
+      } else {
+        ScorecardPhotoUpload.clearImage();
+      }
+    }
 
     const playerInput = document.getElementById('player-name');
     if (playerInput && score.playerName) playerInput.value = score.playerName;
