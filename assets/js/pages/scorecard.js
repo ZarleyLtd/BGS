@@ -755,10 +755,17 @@ const ScorecardPage = {
       });
   },
 
+  // Toggles both the Delete Score button and the scorecard photo button —
+  // both only appear once a score has been submitted / loaded.
   updateDeleteButtonVisibility: function() {
+    const visible = !!this._loadedExistingScore;
     const btn = document.getElementById('delete-score-btn');
     if (btn) {
-      btn.style.display = this._loadedExistingScore ? 'inline-flex' : 'none';
+      btn.style.display = visible ? 'inline-flex' : 'none';
+    }
+    const photoBtn = document.getElementById('scorecard-photo-btn');
+    if (photoBtn) {
+      photoBtn.style.display = visible ? 'inline-flex' : 'none';
     }
   },
 
@@ -768,6 +775,14 @@ const ScorecardPage = {
       this.showMessage('No score loaded to delete.', false);
       return;
     }
+    this.showConfirm(
+      'Are you sure you want to delete this score?',
+      'Delete Score',
+      () => this.performDeleteScore(score)
+    );
+  },
+
+  performDeleteScore: function(score) {
     const deleteBtn = document.getElementById('delete-score-btn');
     if (deleteBtn) {
       deleteBtn.disabled = true;
@@ -786,14 +801,14 @@ const ScorecardPage = {
         this.clearInputs();
         if (deleteBtn) {
           deleteBtn.disabled = false;
-          deleteBtn.textContent = 'Delete score';
+          deleteBtn.textContent = 'Delete Score';
         }
         this.showMessage('Score deleted.', false);
       })
       .catch((err) => {
         if (deleteBtn) {
           deleteBtn.disabled = false;
-          deleteBtn.textContent = 'Delete score';
+          deleteBtn.textContent = 'Delete Score';
         }
         this.showMessage(err.message || 'Unable to delete score.', true);
       });
@@ -1160,6 +1175,65 @@ const ScorecardPage = {
 
     // Focus the button for accessibility
     closeBtn.focus();
+  },
+
+  // Blocking confirmation dialog with Confirm/Cancel. onConfirm runs only if confirmed.
+  showConfirm: function(message, confirmLabel, onConfirm) {
+    const existing = document.querySelector('.scorecard-message-overlay');
+    if (existing) {
+      existing.remove();
+    }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'scorecard-message-overlay';
+
+    const messageBox = document.createElement('div');
+    messageBox.className = 'scorecard-message';
+    messageBox.style.background = '#b82e35';
+
+    const text = document.createElement('div');
+    text.textContent = message;
+    messageBox.appendChild(text);
+
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display: flex; gap: 0.8em; justify-content: center;';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.style.cssText = 'background: transparent; border: 1px solid rgba(255, 255, 255, 0.7);';
+
+    const confirmBtn = document.createElement('button');
+    confirmBtn.type = 'button';
+    confirmBtn.textContent = confirmLabel || 'OK';
+    confirmBtn.style.cssText = 'background: var(--white, #fff); color: #b82e35;';
+
+    btnRow.appendChild(cancelBtn);
+    btnRow.appendChild(confirmBtn);
+    messageBox.appendChild(btnRow);
+    overlay.appendChild(messageBox);
+    document.body.appendChild(overlay);
+
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') close();
+    };
+    const close = () => {
+      overlay.remove();
+      document.removeEventListener('keydown', handleEscape);
+    };
+
+    cancelBtn.addEventListener('click', close);
+    confirmBtn.addEventListener('click', () => {
+      close();
+      if (onConfirm) onConfirm();
+    });
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) close();
+    });
+    document.addEventListener('keydown', handleEscape);
+
+    // Focus Cancel so Enter doesn't accidentally delete
+    cancelBtn.focus();
   },
 
   // Check for existing score when course or name changes

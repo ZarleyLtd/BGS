@@ -79,16 +79,11 @@
       }
 
       /* Course and Name sit in separate rows, each with their own flex split, so the
-         Course dropdown (row 1, only sharing space with the compact photo button) can
-         grow wider than the Name field (row 2, sharing space with the H/C field) when
-         there's room — rather than being forced to match Name's width via shared grid columns. */
+         Course dropdown (row 1, full width) can grow wider than the Name field
+         (row 2, sharing space with the H/C field) when there's room. */
       .scorecard-header-row--top .course-select-wrapper {
         flex: 1 1 auto;
         min-width: 0;
-      }
-
-      .scorecard-header-row--top .scorecard-photo-wrapper {
-        flex: 0 0 auto;
       }
 
       .scorecard-header-row--bottom .name-field-wrapper {
@@ -184,7 +179,6 @@
       }
 
       .scorecard-header .course-select-wrapper,
-      .scorecard-header .scorecard-photo-wrapper,
       .scorecard-header .name-field-wrapper,
       .scorecard-header .handicap-field-wrapper {
         display: flex;
@@ -196,19 +190,16 @@
         margin-bottom: 0;
       }
 
-      /* Scorecard photo upload button — sits to the right of the (now shortened)
-         Course dropdown, directly above the Handicap field. */
-      .scorecard-photo-wrapper {
-        justify-content: flex-end;
-      }
-
+      /* Scorecard photo upload button — sits in the actions row to the right of
+         Submit Score; only shown once the scorecard has been submitted. */
       .scorecard-photo-btn {
         position: relative;
-        width: 100%;
-        height: 2.4em;
-        min-width: 2.6em;
-        max-width: 4.6em;
-        margin-left: auto;
+        /* Same font-size as the Submit/Delete buttons so the 2.2em height
+           computes to exactly the same pixel height. */
+        font-size: 0.95rem;
+        width: 3.4em;
+        height: 2.2em;
+        margin: 0;
         padding: 0;
         border: 1px solid var(--light, #CACBCF);
         border-radius: 3px;
@@ -412,10 +403,6 @@
         .scorecard-header label {
           font-size: 0.9rem;
           margin-right: 0.3em;
-        }
-        .scorecard-photo-btn {
-          height: 2.1em;
-          max-width: 3.6em;
         }
       }
 
@@ -1685,9 +1672,6 @@
                         <option value="">Select Course</option>
                       </select>
                     </div>
-                    <div class="scorecard-photo-wrapper">
-                      <button type="button" id="scorecard-photo-btn" class="scorecard-photo-btn"></button>
-                    </div>
                   </div>
                   <div class="scorecard-header-row scorecard-header-row--bottom">
                     <div class="name-field-wrapper">
@@ -1848,9 +1832,10 @@
                     </div>
                 </div>
                 </div>
-                <div style="display: flex; justify-content: center; gap: 1em; margin-top: 1.5em; flex-wrap: wrap; align-items: baseline;">
-                  <button type="button" id="save-score-btn" style="margin: 0; background: #2E7D32; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.95rem; font-weight: 600; line-height: 2.2em; height: 2.2em; padding: 0 1.2em; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; white-space: nowrap; vertical-align: baseline;">Submit Score</button>
-                  <button type="button" id="delete-score-btn" style="margin: 0; background: #b82e35; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.95rem; font-weight: 600; line-height: 2.2em; height: 2.2em; padding: 0 1.2em; display: none; align-items: center; justify-content: center; box-sizing: border-box; white-space: nowrap; vertical-align: baseline;" aria-label="Delete this score">Delete score</button>
+                <div style="display: flex; justify-content: center; gap: 1em; margin-top: 1.5em; flex-wrap: wrap; align-items: center;">
+                  <button type="button" id="save-score-btn" style="margin: 0; background: #2E7D32; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.95rem; font-weight: 600; line-height: 2.2em; height: 2.2em; padding: 0 1.2em; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; white-space: nowrap;">Submit Score</button>
+                  <button type="button" id="scorecard-photo-btn" class="scorecard-photo-btn" style="display: none; margin: 0;"></button>
+                  <button type="button" id="delete-score-btn" style="margin: 0; background: #b82e35; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.95rem; font-weight: 600; line-height: 2.2em; height: 2.2em; padding: 0 1.2em; display: none; align-items: center; justify-content: center; box-sizing: border-box; white-space: nowrap;" aria-label="Delete this score">Delete Score</button>
                 </div>
               </form>
             </div>
