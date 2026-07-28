@@ -278,7 +278,7 @@
       }
       .lb-outing-block .lb-outing-main {
         display: grid;
-        grid-template-columns: 10% 55% 15% 20%;
+        grid-template-columns: 10% 45% 10% 15% 20%;
         padding: 1em 0.75em;
         cursor: pointer;
         align-items: center;
@@ -289,6 +289,20 @@
       .lb-outing-block .lb-outing-main .lb-cell-pos { font-weight: 700; color: var(--lb-accent); font-size: 1.1em; }
       .lb-outing-block .lb-outing-main .lb-cell-name { font-weight: 600; color: #333; }
       .lb-outing-block .lb-outing-main .lb-cell-hcp { text-align: center; color: #666; font-size: 0.9em; }
+      .lb-outing-block .lb-outing-main .lb-cell-photo { display: flex; align-items: center; justify-content: center; }
+
+      /* Scorecard photo thumbnail — sits to the left of the Hcp cell; click opens ImageLightbox */
+      .lb-scorecard-thumb {
+        width: 2.2em;
+        height: 2.2em;
+        object-fit: cover;
+        border-radius: 3px;
+        border: 1px solid #ddd;
+        cursor: zoom-in;
+        display: block;
+      }
+      .lb-photo-cell { text-align: center; width: 3em; }
+      .lb-photo-cell .lb-scorecard-thumb { margin: 0 auto; }
       .lb-outing-block .lb-outing-main .lb-cell-pts { text-align: right; font-weight: 700; color: var(--lb-accent); font-size: 1.1em; }
       .lb-countback { font-size: 0.7em; font-weight: normal; color: #888; margin-right: 0.35em; }
 
@@ -316,7 +330,7 @@
         .lb-outing-block-wrap { font-size: 0.85em; }
         .lb-outing-block-wrap .lb-outing-header {
           display: grid;
-          grid-template-columns: 10% 55% 15% 20%;
+          grid-template-columns: 10% 45% 10% 15% 20%;
           padding: 0.75em 0.5em;
           background: var(--lb-accent);
           color: #fff;
@@ -536,6 +550,7 @@
     <script src="assets/js/utils/api-client.js"></script>
     <script src="assets/js/utils/bgs-data.js"></script>
     <script src="assets/js/utils/courses-loader.js"></script>
+    <script src="assets/js/components/image-lightbox.js"></script>
     <script src="assets/js/pages/leaderboard.js"></script>
     <script src="assets/js/main.js"></script>
   </body>

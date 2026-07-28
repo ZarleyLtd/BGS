@@ -412,7 +412,7 @@ const LeaderboardPage = {
 
         // Mobile block layout
         sectionParts.push('<div class="lb-outing-block-wrap">');
-        sectionParts.push('<div class="lb-outing-header"><span>Pos</span><span>Name</span><span>Hcp</span><span style="text-align:right">Points</span></div>');
+        sectionParts.push('<div class="lb-outing-header"><span>Pos</span><span>Name</span><span></span><span>Hcp</span><span style="text-align:right">Points</span></div>');
 
         // Overall top N rows
         const ords = [];
@@ -435,6 +435,7 @@ const LeaderboardPage = {
             sectionParts.push('<div class="lb-outing-main lb-outing-row" data-detail-html="' + escapedDetail + '">');
             sectionParts.push('<span class="lb-cell-pos">' + this.escapeHtml(ord) + '</span>');
             sectionParts.push('<span class="lb-cell-name">' + this.escapeHtml(this.displayText(sc.playerName)) + '</span>');
+            sectionParts.push(this.buildPhotoCellHtml(sc, 'span', 'lb-cell-photo'));
             sectionParts.push('<span class="lb-cell-hcp">' + this.formatNumber(sc.handicap) + '</span>');
             sectionParts.push('<span class="lb-cell-pts">' + this.formatPointsWithCountback(sc.totalPoints, group.countbackLabel) + '</span>');
             sectionParts.push('</div>');
@@ -458,6 +459,7 @@ const LeaderboardPage = {
             sectionParts.push('<div class="lb-outing-main lb-outing-row" data-detail-html="' + escaped + '">');
             sectionParts.push('<span class="lb-cell-pos">' + this.escapeHtml(f9Label) + '</span>');
             sectionParts.push('<span class="lb-cell-name">' + this.escapeHtml(this.displayText(bestOut.playerName)) + '</span>');
+            sectionParts.push(this.buildPhotoCellHtml(bestOut, 'span', 'lb-cell-photo'));
             sectionParts.push('<span class="lb-cell-hcp">' + this.formatNumber(bestOut.handicap) + '</span>');
             sectionParts.push('<span class="lb-cell-pts">' + this.formatPointsWithCountback(bestOut.outPoints, bestOutResult.countbackLabel) + '</span>');
             sectionParts.push('</div>');
@@ -481,6 +483,7 @@ const LeaderboardPage = {
             sectionParts.push('<div class="lb-outing-main lb-outing-row" data-detail-html="' + escaped + '">');
             sectionParts.push('<span class="lb-cell-pos">' + this.escapeHtml(b9Label) + '</span>');
             sectionParts.push('<span class="lb-cell-name">' + this.escapeHtml(this.displayText(bestIn.playerName)) + '</span>');
+            sectionParts.push(this.buildPhotoCellHtml(bestIn, 'span', 'lb-cell-photo'));
             sectionParts.push('<span class="lb-cell-hcp">' + this.formatNumber(bestIn.handicap) + '</span>');
             sectionParts.push('<span class="lb-cell-pts">' + this.formatPointsWithCountback(bestIn.inPoints, bestInResult.countbackLabel) + '</span>');
             sectionParts.push('</div>');
@@ -504,6 +507,7 @@ const LeaderboardPage = {
             sectionParts.push('<div class="lb-outing-main lb-outing-row" data-detail-html="' + escaped66 + '">');
             sectionParts.push('<span class="lb-cell-pos">' + this.escapeHtml(label66) + '</span>');
             sectionParts.push('<span class="lb-cell-name">' + this.escapeHtml(this.displayText(sc66.playerName)) + '</span>');
+            sectionParts.push(this.buildPhotoCellHtml(sc66, 'span', 'lb-cell-photo'));
             sectionParts.push('<span class="lb-cell-hcp">' + this.formatNumber(sc66.handicap) + '</span>');
             sectionParts.push('<span class="lb-cell-pts">' + this.formatPointsWithCountback(this.points66(sc66), best66Result.countbackLabel) + '</span>');
             sectionParts.push('</div>');
@@ -538,6 +542,7 @@ const LeaderboardPage = {
             sectionParts.push('<div class="lb-outing-main lb-outing-row" data-detail-html="' + p3Esc + '">');
             sectionParts.push('<span class="lb-cell-pos">' + this.escapeHtml(posLabel) + '</span>');
             sectionParts.push('<span class="lb-cell-name">' + this.escapeHtml(this.displayText(tc.score.playerName)) + '</span>');
+            sectionParts.push(this.buildPhotoCellHtml(tc.score, 'span', 'lb-cell-photo'));
             sectionParts.push('<span class="lb-cell-hcp">' + this.formatNumber(tc.score.handicap) + '</span>');
             sectionParts.push('<span class="lb-cell-pts">' + this.formatNumber(tcVal) + p3Suffix + '</span>');
             sectionParts.push('</div>');
@@ -564,6 +569,7 @@ const LeaderboardPage = {
             sectionParts.push('<div class="lb-outing-main lb-outing-row" data-detail-html="' + twosEsc + '">');
             sectionParts.push('<span class="lb-cell-pos">' + this.escapeHtml(posLabel2s) + '</span>');
             sectionParts.push('<span class="lb-cell-name">' + displayName + '</span>');
+            sectionParts.push(this.buildPhotoCellHtml(tw.score, 'span', 'lb-cell-photo'));
             sectionParts.push('<span class="lb-cell-hcp">' + this.formatNumber(tw.score.handicap) + '</span>');
             sectionParts.push('<span class="lb-cell-pts">—</span>');
             sectionParts.push('</div>');
@@ -576,7 +582,7 @@ const LeaderboardPage = {
 
         // Desktop table layout
         sectionParts.push('<div class="lb-table-scroll-wrap"><table class="leaderboard-table leaderboard-table--outing">');
-        sectionParts.push('<thead><tr><th>Pos</th><th>Name</th><th class="text-center">Hcp</th><th class="text-right">Points</th></tr></thead><tbody>');
+        sectionParts.push('<thead><tr><th>Pos</th><th>Name</th><th></th><th class="text-center">Hcp</th><th class="text-right">Points</th></tr></thead><tbody>');
 
         // Re-render the same content in table form
         for (let r = 0; r < rankedOverall.length; r++) {
@@ -594,10 +600,11 @@ const LeaderboardPage = {
             sectionParts.push('<tr class="lb-outing-row" data-detail-html="' + escapedForAttr + '">');
             sectionParts.push('<td class="leaderboard-position">' + this.escapeHtml(ord) + '</td>');
             sectionParts.push('<td class="leaderboard-player-name lb-name-cell">' + this.escapeHtml(this.displayText(sc.playerName)) + '</td>');
+            sectionParts.push(this.buildPhotoCellHtml(sc, 'td', 'lb-photo-cell'));
             sectionParts.push('<td class="text-center leaderboard-section">' + this.formatNumber(sc.handicap) + '</td>');
             sectionParts.push('<td class="text-right leaderboard-points">' + this.formatPointsWithCountback(sc.totalPoints, group.countbackLabel) + '</td>');
             sectionParts.push('</tr>');
-            sectionParts.push('<tr class="lb-detail-row lb-detail-row--table"><td colspan="4">' + detailHtml + '</td></tr>');
+            sectionParts.push('<tr class="lb-detail-row lb-detail-row--table"><td colspan="5">' + detailHtml + '</td></tr>');
           }
         }
 
@@ -609,10 +616,11 @@ const LeaderboardPage = {
             sectionParts.push('<tr class="lb-outing-row" data-detail-html="' + detailHtml.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '">');
             sectionParts.push('<td class="leaderboard-position">' + this.escapeHtml(f9TableLabel) + '</td>');
             sectionParts.push('<td class="leaderboard-player-name lb-name-cell">' + this.escapeHtml(this.displayText(bestOut.playerName)) + '</td>');
+            sectionParts.push(this.buildPhotoCellHtml(bestOut, 'td', 'lb-photo-cell'));
             sectionParts.push('<td class="text-center leaderboard-section">' + this.formatNumber(bestOut.handicap) + '</td>');
             sectionParts.push('<td class="text-right leaderboard-points">' + this.formatPointsWithCountback(bestOut.outPoints, bestOutResult.countbackLabel) + '</td>');
             sectionParts.push('</tr>');
-            sectionParts.push('<tr class="lb-detail-row lb-detail-row--table"><td colspan="4">' + detailHtml + '</td></tr>');
+            sectionParts.push('<tr class="lb-detail-row lb-detail-row--table"><td colspan="5">' + detailHtml + '</td></tr>');
           }
         }
 
@@ -624,10 +632,11 @@ const LeaderboardPage = {
             sectionParts.push('<tr class="lb-outing-row" data-detail-html="' + detailHtml.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '">');
             sectionParts.push('<td class="leaderboard-position">' + this.escapeHtml(b9TableLabel) + '</td>');
             sectionParts.push('<td class="leaderboard-player-name lb-name-cell">' + this.escapeHtml(this.displayText(bestIn.playerName)) + '</td>');
+            sectionParts.push(this.buildPhotoCellHtml(bestIn, 'td', 'lb-photo-cell'));
             sectionParts.push('<td class="text-center leaderboard-section">' + this.formatNumber(bestIn.handicap) + '</td>');
             sectionParts.push('<td class="text-right leaderboard-points">' + this.formatPointsWithCountback(bestIn.inPoints, bestInResult.countbackLabel) + '</td>');
             sectionParts.push('</tr>');
-            sectionParts.push('<tr class="lb-detail-row lb-detail-row--table"><td colspan="4">' + detailHtml + '</td></tr>');
+            sectionParts.push('<tr class="lb-detail-row lb-detail-row--table"><td colspan="5">' + detailHtml + '</td></tr>');
           }
         }
 
@@ -639,10 +648,11 @@ const LeaderboardPage = {
             sectionParts.push('<tr class="lb-outing-row" data-detail-html="' + detailHtml.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '">');
             sectionParts.push('<td class="leaderboard-position">' + this.escapeHtml(tableLabel66) + '</td>');
             sectionParts.push('<td class="leaderboard-player-name lb-name-cell">' + this.escapeHtml(this.displayText(sc66.playerName)) + '</td>');
+            sectionParts.push(this.buildPhotoCellHtml(sc66, 'td', 'lb-photo-cell'));
             sectionParts.push('<td class="text-center leaderboard-section">' + this.formatNumber(sc66.handicap) + '</td>');
             sectionParts.push('<td class="text-right leaderboard-points">' + this.formatPointsWithCountback(this.points66(sc66), best66Result.countbackLabel) + '</td>');
             sectionParts.push('</tr>');
-            sectionParts.push('<tr class="lb-detail-row lb-detail-row--table"><td colspan="4">' + detailHtml + '</td></tr>');
+            sectionParts.push('<tr class="lb-detail-row lb-detail-row--table"><td colspan="5">' + detailHtml + '</td></tr>');
           }
         }
 
@@ -651,7 +661,7 @@ const LeaderboardPage = {
             // Mirror theGolfApp table fallback message.
             sectionParts.push('<tr>');
             sectionParts.push('<td class="leaderboard-position">P3</td>');
-            sectionParts.push('<td colspan="3" class="lb-par3-detail">Par-3 data not available for this course.</td>');
+            sectionParts.push('<td colspan="4" class="lb-par3-detail">Par-3 data not available for this course.</td>');
             sectionParts.push('</tr>');
           } else if (par3Candidates.length > 0) {
             const best = par3Candidates[0];
@@ -672,10 +682,11 @@ const LeaderboardPage = {
               sectionParts.push('<tr class="lb-outing-row">');
               sectionParts.push('<td class="leaderboard-position">' + this.escapeHtml(posLabelP3) + '</td>');
               sectionParts.push('<td class="leaderboard-player-name lb-name-cell">' + this.escapeHtml(this.displayText(tc.score.playerName)) + '</td>');
+              sectionParts.push(this.buildPhotoCellHtml(tc.score, 'td', 'lb-photo-cell'));
               sectionParts.push('<td class="text-center leaderboard-section">' + this.formatNumber(tc.score.handicap) + '</td>');
               sectionParts.push('<td class="text-right leaderboard-points">' + this.formatNumber(tcVal) + p3TableSuffix + '</td>');
               sectionParts.push('</tr>');
-              sectionParts.push('<tr class="lb-detail-row"><td colspan="4">' + detailHtml + '</td></tr>');
+              sectionParts.push('<tr class="lb-detail-row"><td colspan="5">' + detailHtml + '</td></tr>');
             }
           }
         }
@@ -693,10 +704,11 @@ const LeaderboardPage = {
             sectionParts.push('<tr class="lb-outing-row" data-detail-html="' + twosDetailTable.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '">');
             sectionParts.push('<td class="leaderboard-position">' + this.escapeHtml(tableLabel2s) + '</td>');
             sectionParts.push('<td class="leaderboard-player-name lb-name-cell">' + displayName + '</td>');
+            sectionParts.push(this.buildPhotoCellHtml(twt.score, 'td', 'lb-photo-cell'));
             sectionParts.push('<td class="text-center leaderboard-section">' + this.formatNumber(twt.score.handicap) + '</td>');
             sectionParts.push('<td class="text-right leaderboard-points">—</td>');
             sectionParts.push('</tr>');
-            sectionParts.push('<tr class="lb-detail-row lb-detail-row--table"><td colspan="4">' + twosDetailTable + '</td></tr>');
+            sectionParts.push('<tr class="lb-detail-row lb-detail-row--table"><td colspan="5">' + twosDetailTable + '</td></tr>');
           }
         }
 
@@ -757,6 +769,14 @@ const LeaderboardPage = {
       };
 
       container.addEventListener('click', e => {
+        // Scorecard photo thumbnail → open view-only lightbox (and don't toggle the row)
+        const thumb = e.target && e.target.closest && e.target.closest('.lb-scorecard-thumb');
+        if (thumb) {
+          e.stopPropagation();
+          if (typeof ImageLightbox !== 'undefined') ImageLightbox.open(thumb.src);
+          return;
+        }
+
         const overallRow = e.target && e.target.closest && e.target.closest('.lb-overall-row-with-detail');
         if (overallRow) {
           toggleOverallDetail(overallRow);
@@ -1044,7 +1064,7 @@ const LeaderboardPage = {
     parts.push('<h3 class="lb-subsection-title lb-subsection-title--visitors">Visitors</h3>');
 
     parts.push('<div class="lb-outing-block-wrap lb-outing-block-wrap--visitors">');
-    parts.push('<div class="lb-outing-header lb-outing-header--visitors"><span>Pos</span><span>Name</span><span>Hcp</span><span style="text-align:right">Points</span></div>');
+    parts.push('<div class="lb-outing-header lb-outing-header--visitors"><span>Pos</span><span>Name</span><span></span><span>Hcp</span><span style="text-align:right">Points</span></div>');
 
     for (let r = 0; r < rankedVisitors.length; r++) {
       if (!ords[r]) continue;
@@ -1062,6 +1082,7 @@ const LeaderboardPage = {
         parts.push('<div class="lb-outing-main lb-outing-row" data-detail-html="' + escapedDetail + '">');
         parts.push('<span class="lb-cell-pos">' + this.escapeHtml(ord) + '</span>');
         parts.push('<span class="lb-cell-name">' + this.escapeHtml(this.displayText(sc.playerName)) + '</span>');
+        parts.push(this.buildPhotoCellHtml(sc, 'span', 'lb-cell-photo'));
         parts.push('<span class="lb-cell-hcp">' + this.formatNumber(sc.handicap) + '</span>');
         parts.push('<span class="lb-cell-pts">' + this.formatPointsWithCountback(sc.totalPoints, group.countbackLabel) + '</span>');
         parts.push('</div>');
@@ -1073,7 +1094,7 @@ const LeaderboardPage = {
     parts.push('</div>');
 
     parts.push('<div class="lb-table-scroll-wrap"><table class="leaderboard-table leaderboard-table--outing leaderboard-table--visitors">');
-    parts.push('<thead><tr><th>Pos</th><th>Name</th><th class="text-center">Hcp</th><th class="text-right">Points</th></tr></thead><tbody>');
+    parts.push('<thead><tr><th>Pos</th><th>Name</th><th></th><th class="text-center">Hcp</th><th class="text-right">Points</th></tr></thead><tbody>');
 
     for (let r = 0; r < rankedVisitors.length; r++) {
       if (!ords[r]) continue;
@@ -1090,15 +1111,31 @@ const LeaderboardPage = {
         parts.push('<tr class="lb-outing-row" data-detail-html="' + escapedForAttr + '">');
         parts.push('<td class="leaderboard-position">' + this.escapeHtml(ord) + '</td>');
         parts.push('<td class="leaderboard-player-name lb-name-cell">' + this.escapeHtml(this.displayText(sc.playerName)) + '</td>');
+        parts.push(this.buildPhotoCellHtml(sc, 'td', 'lb-photo-cell'));
         parts.push('<td class="text-center leaderboard-section">' + this.formatNumber(sc.handicap) + '</td>');
         parts.push('<td class="text-right leaderboard-points">' + this.formatPointsWithCountback(sc.totalPoints, group.countbackLabel) + '</td>');
         parts.push('</tr>');
-        parts.push('<tr class="lb-detail-row lb-detail-row--table"><td colspan="4">' + detailHtml + '</td></tr>');
+        parts.push('<tr class="lb-detail-row lb-detail-row--table"><td colspan="5">' + detailHtml + '</td></tr>');
       }
     }
 
     parts.push('</tbody></table></div>');
     parts.push('</div>');
+  },
+
+  /**
+   * Thumbnail cell for the scorecard photo, shown to the left of the Hcp cell.
+   * Renders an empty cell when the score has no attached photo, so columns stay aligned.
+   * Clicks are handled by delegation in init() (opens ImageLightbox).
+   */
+  buildPhotoCellHtml: function(sc, tag, cssClass) {
+    const url = sc && sc.imageUrl ? String(sc.imageUrl) : '';
+    // No loading="lazy": the theme hides img[loading] via opacity until ImageLoader
+    // marks it, which runs before these dynamically rendered rows exist.
+    const inner = url
+      ? '<img class="lb-scorecard-thumb" src="' + this.escapeHtml(url) + '" alt="Scorecard photo" title="View scorecard photo">'
+      : '';
+    return '<' + tag + ' class="' + cssClass + '">' + inner + '</' + tag + '>';
   },
 
   formatNumber: function(num) {

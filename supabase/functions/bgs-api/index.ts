@@ -270,6 +270,32 @@ async function withImageUrl(
   return { ...score, imageUrl };
 }
 
+/** Batch-sign `imageUrl` for many mapped score rows with a single Storage call. */
+async function attachSignedImageUrls(
+  sb: ReturnType<typeof createClient>,
+  scores: Record<string, unknown>[],
+): Promise<void> {
+  const paths = [
+    ...new Set(scores.map((s) => s.imagePath as string | null).filter((p): p is string => !!p)),
+  ];
+  const byPath: Record<string, string> = {};
+  if (paths.length) {
+    const { data, error } = await sb.storage
+      .from(IMAGE_BUCKET)
+      .createSignedUrls(paths, IMAGE_SIGNED_URL_TTL);
+    if (error) {
+      console.warn("Failed to batch-sign scorecard image URLs:", error.message);
+    } else {
+      for (const item of data || []) {
+        if (item.path && item.signedUrl) byPath[item.path] = item.signedUrl;
+      }
+    }
+  }
+  for (const s of scores) {
+    s.imageUrl = (s.imagePath && byPath[s.imagePath as string]) || null;
+  }
+}
+
 function decodeImagePayload(base64: unknown, mimeType: unknown): { bytes: Uint8Array; mime: string } | null {
   const raw = String(base64 || "").replace(/^data:[^,]+,/, "").replace(/\s/g, "");
   if (!raw) return null;
@@ -341,7 +367,9 @@ async function loadScores(
     rows = rows.filter((r) => normalizeName(String(r.players?.player_name || "")) === want);
   }
   rows = rows.slice(0, limit);
-  return { success: true, scores: rows.map(mapScoreRow) };
+  const scores = rows.map(mapScoreRow);
+  await attachSignedImageUrls(sb, scores);
+  return { success: true, scores };
 }
 
 async function checkExistingScore(
