@@ -801,14 +801,14 @@ const ScorecardPage = {
         this.clearInputs();
         if (deleteBtn) {
           deleteBtn.disabled = false;
-          deleteBtn.textContent = 'Delete Score';
+          deleteBtn.textContent = 'Delete';
         }
         this.showMessage('Score deleted.', false);
       })
       .catch((err) => {
         if (deleteBtn) {
           deleteBtn.disabled = false;
-          deleteBtn.textContent = 'Delete Score';
+          deleteBtn.textContent = 'Delete';
         }
         this.showMessage(err.message || 'Unable to delete score.', true);
       });
@@ -1464,7 +1464,7 @@ const ScorecardPage = {
       scoreData.imageMimeType = this._pendingImage.mimeType;
     }
 
-    const originalBtnText = saveBtn ? saveBtn.innerHTML : 'Submit Score';
+    const originalBtnText = saveBtn ? saveBtn.innerHTML : 'Submit';
     
     if (saveBtn) {
       saveBtn.disabled = true;

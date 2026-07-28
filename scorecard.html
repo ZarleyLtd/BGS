@@ -287,6 +287,14 @@
         box-sizing: border-box;
       }
 
+      /* Double-class selectors (0,2,0) so these beat the theme's
+         [type="button"] + [type="button"] sibling-margin rule in style.css. */
+      .scorecard-photo-menu-card .scorecard-photo-menu-btn,
+      .scorecard-photo-menu-card .scorecard-photo-menu-cancel,
+      .scorecard-photo-lightbox__actions .scorecard-photo-menu-btn {
+        margin: 0;
+      }
+
       .scorecard-photo-menu-btn,
       .scorecard-photo-menu-cancel {
         display: block;
@@ -318,14 +326,14 @@
         background: rgba(184, 46, 53, 0.18);
       }
 
-      .scorecard-photo-menu-cancel {
-        background: transparent;
-        color: var(--gray, #57585a);
-        margin-top: 0.2em;
+      .scorecard-photo-menu-card .scorecard-photo-menu-cancel {
+        background: var(--gray, #57585a);
+        color: var(--white, #fff);
+        margin-top: 0.4em;
       }
 
-      .scorecard-photo-menu-cancel:hover {
-        text-decoration: underline;
+      .scorecard-photo-menu-card .scorecard-photo-menu-cancel:hover {
+        background: var(--dark, #17181E);
       }
 
       /* Full-size photo lightbox (opened by tapping the button once a photo is set) */
@@ -1833,9 +1841,9 @@
                 </div>
                 </div>
                 <div style="display: flex; justify-content: center; gap: 1em; margin-top: 1.5em; flex-wrap: wrap; align-items: center;">
-                  <button type="button" id="save-score-btn" style="margin: 0; background: #2E7D32; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.95rem; font-weight: 600; line-height: 2.2em; height: 2.2em; padding: 0 1.2em; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; white-space: nowrap;">Submit Score</button>
+                  <button type="button" id="save-score-btn" style="margin: 0; background: #2E7D32; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.95rem; font-weight: 600; line-height: 2.2em; height: 2.2em; padding: 0 1.2em; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; white-space: nowrap;">Submit</button>
                   <button type="button" id="scorecard-photo-btn" class="scorecard-photo-btn" style="display: none; margin: 0;"></button>
-                  <button type="button" id="delete-score-btn" style="margin: 0; background: #b82e35; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.95rem; font-weight: 600; line-height: 2.2em; height: 2.2em; padding: 0 1.2em; display: none; align-items: center; justify-content: center; box-sizing: border-box; white-space: nowrap;" aria-label="Delete this score">Delete Score</button>
+                  <button type="button" id="delete-score-btn" style="margin: 0; background: #b82e35; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.95rem; font-weight: 600; line-height: 2.2em; height: 2.2em; padding: 0 1.2em; display: none; align-items: center; justify-content: center; box-sizing: border-box; white-space: nowrap;" aria-label="Delete this score">Delete</button>
                 </div>
               </form>
             </div>
