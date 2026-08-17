@@ -72,8 +72,8 @@ const BgsData = {
   },
 
   /**
-   * All scheduled outings (date, time, course, comps).
-   * @returns {Promise<{ success: boolean, outings: Array<{ outingId, date, time, courseName, comps }> }>}
+   * All scheduled outings (date, time, course, comps, blurLeaderboard).
+   * @returns {Promise<{ success: boolean, outings: Array<{ outingId, date, time, courseName, comps, blurLeaderboard }> }>}
    */
   getOutings: function() {
     return this.fetchJson("getOutings");

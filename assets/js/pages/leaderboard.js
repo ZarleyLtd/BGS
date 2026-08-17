@@ -83,6 +83,7 @@ const LeaderboardPage = {
         overallStatusInfo.excludeVisitorsOverall;
       const isVisitorScore = this.buildIsVisitorFromPlayers(players);
 
+      const blurredOutingKeys = {};
       const outingOrderKeys = [];
       const dbKeyOrder = {};
       if (outings.length) {
@@ -97,8 +98,10 @@ const LeaderboardPage = {
           if (!k) continue;
           outingOrderKeys.push(k);
           dbKeyOrder[k] = oi;
+          if (o.blurLeaderboard) blurredOutingKeys[k] = true;
         }
       }
+      const isOutingBlurred = oKey => !!blurredOutingKeys[oKey];
 
       const scoresByOuting = {};
       const outingMeta = {};
@@ -152,8 +155,8 @@ const LeaderboardPage = {
           isVisitorScore
         };
         const rankedOverallLeaders = overallStatus === 'O10'
-          ? this.buildO10Overall(overallOpts).rankedOverallLeaders
-          : this.buildOapOverall(Object.assign({ scores }, overallOpts)).rankedOverallLeaders;
+          ? this.buildO10Overall(Object.assign({ isOutingBlurred }, overallOpts)).rankedOverallLeaders
+          : this.buildOapOverall(Object.assign({ scores, isOutingBlurred }, overallOpts)).rankedOverallLeaders;
 
         const overallParts = [];
         overallParts.push('<div class="lb-section lb-section--overall">');
@@ -236,6 +239,12 @@ const LeaderboardPage = {
         const firstScoreDate = outingDateStr || (outingScores[0] && this.safeString(outingScores[0].date)) || '';
         const scoreDates = outingScores.map(s => s && s.date);
         let compsStr = this.getCompsForScores(
+          outings,
+          oKey.split('|')[0] || courseNameDisplay,
+          outingDateStr || firstScoreDate,
+          scoreDates
+        );
+        const blurLeaderboard = this.getBlurLeaderboardForScores(
           outings,
           oKey.split('|')[0] || courseNameDisplay,
           outingDateStr || firstScoreDate,
@@ -388,7 +397,11 @@ const LeaderboardPage = {
 
         // Section wrapper
         const sectionParts = [];
-        sectionParts.push('<div class="lb-section lb-section--outing" data-outing-key="' + this.escapeHtml(oKey) + '">');
+        sectionParts.push(
+          '<div class="lb-section lb-section--outing' +
+          (blurLeaderboard ? ' lb-section--blurred' : '') +
+          '" data-outing-key="' + this.escapeHtml(oKey) + '">'
+        );
 
         // Header
         const dateLine =
@@ -409,6 +422,9 @@ const LeaderboardPage = {
             '</span>' +
           '</h2>'
         );
+        if (blurLeaderboard) {
+          sectionParts.push('<p class="lb-blur-notice">Results hidden until the captain reveals them.</p>');
+        }
 
         // Mobile block layout
         sectionParts.push('<div class="lb-outing-block-wrap">');
@@ -1001,6 +1017,42 @@ const LeaderboardPage = {
     return this.safeString(best.comps);
   },
 
+  /** Match theGolfApp `leaderboard-shared.getBlurLeaderboardForScores`. */
+  getBlurLeaderboardForScores: function(outings, courseName, dateStr, scoreDates) {
+    const cn = this.safeString(courseName).toLowerCase();
+    const dt = this.safeString(dateStr).trim();
+    if (!outings || !outings.length) return false;
+    for (let i = 0; i < outings.length; i++) {
+      const o = outings[i];
+      if (this.safeString(o.courseName).toLowerCase() === cn && this.safeString(o.date).trim() === dt) {
+        return !!o.blurLeaderboard;
+      }
+    }
+    const byCourse = [];
+    for (let j = 0; j < outings.length; j++) {
+      const o2 = outings[j];
+      if (this.safeString(o2.courseName).toLowerCase() === cn) byCourse.push(o2);
+    }
+    if (byCourse.length === 0) return false;
+    if (byCourse.length === 1) return !!byCourse[0].blurLeaderboard;
+    const scoreDateCounts = {};
+    const dates = scoreDates || [];
+    for (let k = 0; k < dates.length; k++) {
+      const d = this.safeString(dates[k]).trim();
+      scoreDateCounts[d] = (scoreDateCounts[d] || 0) + 1;
+    }
+    let best = byCourse[0];
+    let bestCount = scoreDateCounts[this.safeString(best.date).trim()] || 0;
+    for (let m = 1; m < byCourse.length; m++) {
+      const cnt = scoreDateCounts[this.safeString(byCourse[m].date).trim()] || 0;
+      if (cnt > bestCount) {
+        best = byCourse[m];
+        bestCount = cnt;
+      }
+    }
+    return !!best.blurLeaderboard;
+  },
+
   // UI formatting: sometimes values arrive URL-encoded (e.g. "Corballis+Links").
   // Replace "+" with spaces for display only.
   displayText: function(v) {
@@ -1559,8 +1611,9 @@ const LeaderboardPage = {
   },
 
   // OAP overall: sum of Stableford points across outings (best card per player per outing).
-  buildOapOverall: function({ outingOrderKeys, scoresByOuting, outingMeta, scores, excludeVisitors, isVisitorScore }) {
+  buildOapOverall: function({ outingOrderKeys, scoresByOuting, outingMeta, scores, excludeVisitors, isVisitorScore, isOutingBlurred }) {
     const skipVisitor = excludeVisitors && typeof isVisitorScore === 'function';
+    const skipBlurred = typeof isOutingBlurred === 'function';
     const byKeyPlayer = {};
     for (let i = 0; i < scores.length; i++) {
       const sc = scores[i];
@@ -1570,6 +1623,7 @@ const LeaderboardPage = {
       const name = this.safeString(sc && sc.playerName).trim();
       if (!course || !date || !name) continue;
       const key = this.outingKeyFromParts(course, date);
+      if (skipBlurred && isOutingBlurred(key)) continue;
       const pkey = name.toLowerCase();
       const pts = parseFloat(sc.totalPoints) || 0;
       const id = key + '\0' + pkey;
@@ -1602,6 +1656,7 @@ const LeaderboardPage = {
     const outingPositions = {};
     for (let op = 0; op < outingOrderKeys.length; op++) {
       const oKeyOp = outingOrderKeys[op];
+      if (skipBlurred && isOutingBlurred(oKeyOp)) continue;
       let rawOp = scoresByOuting[oKeyOp] || [];
       if (skipVisitor) rawOp = rawOp.filter(r => !isVisitorScore(r));
       const byPlayerOp = {};
@@ -1650,6 +1705,7 @@ const LeaderboardPage = {
       const orderedOutingDetails = [];
       for (let k = 0; k < outingOrderKeys.length; k++) {
         const oKeyK = outingOrderKeys[k];
+        if (skipBlurred && isOutingBlurred(oKeyK)) continue;
         if (rec.pointsByOuting[oKeyK] == null) continue;
         const ptsK = rec.pointsByOuting[oKeyK];
         const meta = outingMeta[oKeyK] || {};
@@ -1679,8 +1735,9 @@ const LeaderboardPage = {
   },
 
   // O10 overall: 1st=10pts, 2nd=9,... 10th=1 per outing. Ties get same points.
-  buildO10Overall: function({ outingOrderKeys, scoresByOuting, outingMeta, excludeVisitors, isVisitorScore }) {
+  buildO10Overall: function({ outingOrderKeys, scoresByOuting, outingMeta, excludeVisitors, isVisitorScore, isOutingBlurred }) {
     const skipVisitor = excludeVisitors && typeof isVisitorScore === 'function';
+    const skipBlurred = typeof isOutingBlurred === 'function';
     const pointsForPos = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
     const positionPointsByPlayer = {};
     const positionDetailsByPlayer = {};
@@ -1717,6 +1774,7 @@ const LeaderboardPage = {
 
     for (let okIdx = 0; okIdx < outingOrderKeys.length; okIdx++) {
       const oKey = outingOrderKeys[okIdx];
+      if (skipBlurred && isOutingBlurred(oKey)) continue;
       let rawScores = scoresByOuting[oKey] || [];
       if (skipVisitor) rawScores = rawScores.filter(r => !isVisitorScore(r));
 

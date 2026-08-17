@@ -224,11 +224,20 @@
       .leaderboard-table--outing th:nth-child(1),
       .leaderboard-table--outing td:nth-child(1) { width: 10%; }
       .leaderboard-table--outing th:nth-child(2),
-      .leaderboard-table--outing td:nth-child(2) { width: 55%; }
+      .leaderboard-table--outing td:nth-child(2) {
+        width: 45%;
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
       .leaderboard-table--outing th:nth-child(3),
-      .leaderboard-table--outing td:nth-child(3) { width: 15%; }
+      .leaderboard-table--outing td:nth-child(3) { width: 10%; }
       .leaderboard-table--outing th:nth-child(4),
-      .leaderboard-table--outing td:nth-child(4) { width: 20%; }
+      .leaderboard-table--outing td:nth-child(4) { width: 15%; }
+      .leaderboard-table--outing th:nth-child(5),
+      .leaderboard-table--outing td:nth-child(5) {
+        width: 20%;
+        white-space: nowrap;
+      }
       @media (max-width: 600px) {
         .leaderboard-table { font-size: 0.85em; }
         .leaderboard-table th, .leaderboard-table td { padding: 0.75em 0.5em; }
@@ -243,6 +252,31 @@
       .leaderboard-score { color: #333; }
       .leaderboard-section { color: #666; font-size: 0.9em; }
       .lb-outing-row { cursor: pointer; }
+
+      /* --- Blurred outing (captain has not revealed results) --- */
+      .lb-blur-notice {
+        margin: 0.35em 0 0.85em;
+        font-size: 0.9em;
+        color: #666;
+        font-style: italic;
+      }
+      .lb-section--blurred .lb-cell-name,
+      .lb-section--blurred .lb-cell-hcp,
+      .lb-section--blurred .lb-cell-pts,
+      .lb-section--blurred .leaderboard-player-name,
+      .lb-section--blurred .leaderboard-section,
+      .lb-section--blurred .leaderboard-points,
+      .lb-section--blurred .lb-detail-row,
+      .lb-section--blurred .lb-hole-detail-panel,
+      .lb-section--blurred .lb-twos-count {
+        filter: blur(6px);
+        user-select: none;
+      }
+      .lb-section--blurred .lb-outing-row,
+      .lb-section--blurred .lb-outing-main {
+        cursor: default;
+        pointer-events: none;
+      }
 
       /* --- 18-hole expandable detail --- */
       .lb-detail-row { display: none; }

@@ -715,6 +715,7 @@ async function getOutingsList(sb: ReturnType<typeof createClient>) {
       time: String(row.outing_time || ""),
       courseName: String(row.course_name || ""),
       comps: String(row.comps || ""),
+      blurLeaderboard: !!row.blur_leaderboard,
     })),
   };
 }
