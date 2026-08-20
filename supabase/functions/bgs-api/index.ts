@@ -801,6 +801,48 @@ async function getSocietyPlayers(sb: ReturnType<typeof createClient>) {
   };
 }
 
+/** Read team rosters for leaderboard team competitions, grouped by outing ID. */
+async function getOutingTeams(sb: ReturnType<typeof createClient>) {
+  const { data, error } = await sb
+    .from("teams")
+    .select("team_id, team_name, outing_id, team_members(player_id)")
+    .eq("society_id", SOCIETY_ID)
+    .order("team_name");
+  if (error) throw new Error(error.message);
+
+  const { data: players, error: playerError } = await sb
+    .from("players")
+    .select("player_id, player_name")
+    .eq("society_id", SOCIETY_ID);
+  if (playerError) throw new Error(playerError.message);
+
+  const playerNames: Record<string, string> = {};
+  (players || []).forEach((player: { player_id: string; player_name: string }) => {
+    playerNames[player.player_id] = player.player_name;
+  });
+
+  const teamsByOuting: Record<string, Array<Record<string, unknown>>> = {};
+  (data || []).forEach((row: {
+    team_id: string;
+    team_name: string;
+    outing_id: string;
+    team_members?: Array<{ player_id: string }>;
+  }) => {
+    const outingId = String(row.outing_id || "");
+    if (!outingId) return;
+    const playerIds = (row.team_members || []).map((member) => member.player_id);
+    if (!teamsByOuting[outingId]) teamsByOuting[outingId] = [];
+    teamsByOuting[outingId].push({
+      teamId: row.team_id,
+      teamName: row.team_name,
+      playerIds,
+      playerNames: playerIds.map((playerId) => playerNames[playerId] || playerId),
+    });
+  });
+
+  return { success: true, teamsByOuting };
+}
+
 async function getNextOuting(sb: ReturnType<typeof createClient>) {
   const today = new Date().toISOString().slice(0, 10);
   const { data: outings, error: oErr } = await sb
@@ -867,6 +909,7 @@ async function dispatchGet(sb: ReturnType<typeof createClient>, action: string, 
   if (action === "getEditorNotesRows") return await getEditorNotesRows(sb);
   if (action === "getCourseDefs") return await getCourseDefsObject(sb);
   if (action === "getSocietyPlayers") return await getSocietyPlayers(sb);
+  if (action === "getOutingTeams") return await getOutingTeams(sb);
   if (action === "getNextOuting") return await getNextOuting(sb);
   if (action === "loadScores") return await loadScores(sb, args);
   if (action === "checkExistingScore") return await checkExistingScore(sb, args);
@@ -893,6 +936,7 @@ async function dispatchPost(
   if (action === "getEditorNotesRows") return await getEditorNotesRows(sb);
   if (action === "getCourseDefs") return await getCourseDefsObject(sb);
   if (action === "getSocietyPlayers") return await getSocietyPlayers(sb);
+  if (action === "getOutingTeams") return await getOutingTeams(sb);
   if (action === "getNextOuting") return await getNextOuting(sb);
   if (action === "getHandicapHistory") return await getHandicapHistory(sb, data);
   return { success: false, error: `Unknown action: ${action}` };

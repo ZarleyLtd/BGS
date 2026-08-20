@@ -45,6 +45,12 @@ Stored on **`thegolfapp.societies.status`**. Parsed as upper-case tokens split o
 
 **Reference implementation:** `LeaderboardShared.parseSocietyOverallStatus(statusStr)` in `assets/js/utils/leaderboard-shared.js`.
 
+### 2.3 Best-N outings for Overall
+
+Add `OBN:<n>` as a separate society status token to count only each player's best **n** outing results. For example, `OAP OBN:5` totals the best five Stableford outings, while `O10V OBN:6` totals the best six position-points outings and includes visitors.
+
+The parser exposes this as `overallBestN`. Outings outside the player's best N remain visible in the expanded Overall detail but do not contribute to the total.
+
 ---
 
 ## 3. Outing `comps` — per-competition visitors
@@ -57,7 +63,7 @@ If a competition is present **without** an include marker, visitor-flagged playe
 
 The reference parser initialises all of these to **`true`** (exclude visitors):
 
-- `excludeVisitors18`, `excludeVisitorsF9`, `excludeVisitorsB9`, `excludeVisitorsP3`, `excludeVisitors2s`, `excludeVisitors66`
+- `excludeVisitors18`, `excludeVisitorsF9`, `excludeVisitorsB9`, `excludeVisitorsP3`, `excludeVisitorsNH`, `excludeVisitors2s`, `excludeVisitors66`
 
 ### 3.2 Include marker: suffix **`v`** (lowercase in stored string)
 
@@ -71,8 +77,12 @@ Append **`v`** to the **same token** that enables the comp (after any numeric pa
 | Back 9 | `b9` / `b9:<n>` | `b9v` / `b9:<n>v` |
 | Par 3 strokes | `p3s` | `p3sv` |
 | Par 3 points | `p3p` | `p3pv` |
+| N-holes strokes | `nh:<holes>s` | `nh:<holes>sv` |
+| N-holes points | `nh:<holes>p` | `nh:<holes>pv` |
 | Two’s | `2s` | `2sv` |
 | 66 | `66` | `66v` |
+
+**N-holes** `<holes>` is a hyphen-separated list of unique hole numbers 1–18, e.g. `nh:1-2-12-14s`. A score is eligible only when every selected hole has a positive gross score. Strokes mode ranks the lowest total; points mode ranks the highest total. Handicap is the tie-breaker, matching Par 3 competitions.
 
 **Team** tokens (`th:`, `tt:`, `tw`, `td`, `team`, `team:`) do not define visitor include/exclude in the current admin UI. The parser strips a trailing **`v`** from `th:` / `tt:` numeric tails only so a hand-edited `th:3v` does not break team N parsing; there is no separate “visitors in team comp” flag in comps today.
 
@@ -82,19 +92,30 @@ Append **`v`** to the **same token** that enables the comp (after any numeric pa
 
 **Reference:** `LeaderboardShared.getCompsForScores(outings, courseName, dateStr, scoreDates)` matches an outing by course + date, with fallback when multiple outings share a course.
 
+### 3.4 Team competition tokens
+
+| Token | Rule |
+|-------|------|
+| `th:<n>` | Best N Stableford scores on each hole |
+| `tt:<n>` | Best N full-card Stableford totals |
+| `tw` | Waltz: 1, then 2, then 3 scores count per hole, repeating |
+| `td` | Dusty Bin (reverse Waltz): 3, then 2, then 1 best scores count per hole, repeating |
+| `team` / `team:<n>` | Legacy best-N-per-hole encoding |
+
+Team rosters come from `thegolfapp.teams` and `thegolfapp.team_members`, exposed to BGS by the read-only `getOutingTeams` API action.
+
 ---
 
 ## 4. Leaderboard logic (this repo)
 
-File: **`leaderboard.html`** (inline script using `LeaderboardShared` as `LS`).
+Files: **`leaderboard.html`** and **`assets/js/pages/leaderboard.js`**, using `LeaderboardShared`.
 
 ### 4.1 Data dependencies
 
-1. **`AppConfig.currentSociety.status`** — society Overall mode + visitor policy (`parseSocietyOverallStatus`).
+1. **`BgsData.getSociety().society.status`** — society Overall mode, visitor policy, and optional `OBN:n` (`parseSocietyOverallStatus`).
 2. **`outings`** — each row’s **`comps`** string for per-outing comps (`getCompsForScores` + `parseComps`).
-3. **`players`** — list with **`visitor`** boolean (`getPlayers`); passed into `buildIsVisitorFromPlayers` to classify each score row.
-
-If players are not yet loaded, visitor classification may be wrong until a re-render (first paint may use an empty list).
+3. **`players`** — list with **`visitor`** boolean (`getSocietyPlayers`); passed into `buildIsVisitorFromPlayers` to classify each score row.
+4. **`teamsByOuting`** — team rosters from `getOutingTeams`, used only when a team token is enabled.
 
 ### 4.2 Overall section
 
@@ -116,7 +137,7 @@ overallExcludeVisitors = (overallStatus is OAP or O10) AND parseSocietyOverallSt
 
 When **`OAPV` / `O10V`** is stored, `excludeVisitorsOverall` is **`false`** → none of the above visitor skips run for Overall.
 
-### 4.3 Per-outing sections (18, F9, B9, 66, Par 3, Two’s)
+### 4.3 Per-outing sections (18, F9, B9, 66, Par 3, N-holes, Two’s, Teams)
 
 For each outing block:
 
@@ -127,7 +148,7 @@ Examples:
 
 - **`excludeVisitors18`**: filtered list passed to `rankWithCountback` for 18-hole positions.
 - **F9 / B9**: candidates only added if not `(excludeVisitorsF9 && isVisitorScore)` (same pattern for B9).
-- **66 / Par 3 / Two’s**: same idea — skip or filter when the corresponding `excludeVisitors*` flag is true.
+- **66 / Par 3 / N-holes / Two’s**: same idea — skip or filter when the corresponding `excludeVisitors*` flag is true.
 
 Team stableford aggregation uses member names against `outingScores` without an extra visitor strip in the current file; team comps do not read a visitor flag from `comps`.
 
@@ -135,7 +156,7 @@ Team stableford aggregation uses member names against `outingScores` without an 
 
 ## 5. Society admin (encoding writers)
 
-**Profile → Overall:** `getOverallStatus()` saves `OAP` / `O10` (exclude) or `OAPV` / `O10V` (include).
+The BGS site is a read-only consumer of these encodings. The theGolfApp society admin writes `OAP` / `O10`, visitor suffixes, `OBN:n`, outing competition tokens, and team rosters.
 
 **Outings → comps:** `getCompsFromToggles()` emits tokens with or without **`v`** per tall comp button `data-visitor-comp` (`include` → suffix `v`, `exclude` → no suffix).
 
@@ -159,7 +180,7 @@ Re-save society **status** and outing **comps** from admin, or migrate strings i
 4. In leaderboard (or any aggregate):
    - Apply Overall visitor filter **only if** Overall mode is on **and** `excludeVisitorsOverall` is true.
    - Apply per-comp filters using each `excludeVisitors*` flag from `parseComps`.
-5. Ensure **getSociety** (or your API) returns **`status`** and **getOutings** returns **`comps`** so clients stay in sync with admin.
+5. Ensure **getSociety** returns **`status`**, **getOutings** returns **`comps`**, and team-enabled clients can load outing rosters.
 
 ---
 
@@ -168,7 +189,6 @@ Re-save society **status** and outing **comps** from admin, or migrate strings i
 | Area | Path |
 |------|------|
 | Parser + visitor classifier | `assets/js/utils/leaderboard-shared.js` (`parseSocietyOverallStatus`, `parseComps`, `buildIsVisitorFromPlayers`, `getCompsForScores`) |
-| Leaderboard UI | `leaderboard.html` |
-| All-results (passes `overallStatus`; per-player rendering uses comps elsewhere) | `all-results.html`, `assets/js/pages/all-results.js` |
-| Admin writers | `admin/society-admin.html` (`getOverallStatus`, `setOverallFromStatus`, `getCompsFromToggles`, `setCompsToToggles`) |
-| Player column DDL / API note | `docs/SCHEMA_PLAYERS_VISITOR.md` |
+| Leaderboard UI | `leaderboard.html`, `assets/js/pages/leaderboard.js` |
+| BGS data client | `assets/js/utils/bgs-data.js` |
+| BGS API readers | `supabase/functions/bgs-api/index.ts` |

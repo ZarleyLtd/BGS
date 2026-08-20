@@ -80,6 +80,14 @@ const BgsData = {
   },
 
   /**
+   * Team rosters grouped by outing ID for leaderboard team competitions.
+   * @returns {Promise<{ success: boolean, teamsByOuting: Record<string, Array<{ teamId: string, teamName: string, playerIds: string[], playerNames: string[] }>> }>}
+   */
+  getOutingTeams: function() {
+    return this.fetchJson("getOutingTeams");
+  },
+
+  /**
    * All course rows (URLs, images, par_indx) for outings UI.
    * @returns {Promise<{ success: boolean, courses: Object[] }>}
    */

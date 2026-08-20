@@ -1,7 +1,19 @@
 const LeaderboardPage = {
-  init: async function() {
+  init: async function(input) {
     const container = document.getElementById('leaderboard-container');
     if (!container) return;
+
+    const renderInput = input || {};
+    const hasProvidedTeams =
+      renderInput.teamsByOuting != null ||
+      renderInput.teams != null ||
+      this.teamsByOuting != null ||
+      this.teams != null;
+    let teamsInput =
+      renderInput.teamsByOuting != null ? renderInput.teamsByOuting :
+      renderInput.teams != null ? renderInput.teams :
+      this.teamsByOuting != null ? this.teamsByOuting :
+      this.teams != null ? this.teams : {};
 
     container.innerHTML = '<p class="loading">Loading leaderboard...</p>';
 
@@ -72,12 +84,23 @@ const LeaderboardPage = {
         } catch (e) {
           console.warn('Leaderboard: getSocietyPlayers failed:', e);
         }
+        if (!hasProvidedTeams) {
+          try {
+            if (BgsData.getOutingTeams) {
+              const teamRes = await BgsData.getOutingTeams();
+              teamsInput = (teamRes && teamRes.teamsByOuting) ? teamRes.teamsByOuting : {};
+            }
+          } catch (e) {
+            console.warn('Leaderboard: getOutingTeams failed:', e);
+          }
+        }
       }
 
       // Society Overall mode + visitor policy. `excludeVisitorsOverall` is gated by
       // Overall being on; if no OAP/O10 mode, no visitor filtering applies to Overall.
       const overallStatusInfo = this.parseSocietyOverallStatus(societyRow && societyRow.status);
       const overallStatus = overallStatusInfo.overallMode;
+      const overallBestN = overallStatusInfo.overallBestN || 0;
       const overallExcludeVisitors =
         (overallStatus === 'OAP' || overallStatus === 'O10') &&
         overallStatusInfo.excludeVisitorsOverall;
@@ -85,6 +108,7 @@ const LeaderboardPage = {
 
       const blurredOutingKeys = {};
       const outingOrderKeys = [];
+      const outingKeyToOutingId = {};
       const dbKeyOrder = {};
       if (outings.length) {
         const sorted = outings.slice().sort((a, b) => {
@@ -98,6 +122,7 @@ const LeaderboardPage = {
           if (!k) continue;
           outingOrderKeys.push(k);
           dbKeyOrder[k] = oi;
+          if (o.outingId != null && o.outingId !== '') outingKeyToOutingId[k] = String(o.outingId);
           if (o.blurLeaderboard) blurredOutingKeys[k] = true;
         }
       }
@@ -143,16 +168,29 @@ const LeaderboardPage = {
       const panelParts = [];
 
       if (overallStatus === 'O10' || overallStatus === 'OAP') {
+        const bestNSubtitle = overallBestN > 0
+          ? 'Best ' + overallBestN + (overallBestN === 1 ? ' outing' : ' outings') + ' count'
+          : '';
         const overallSubtitle = overallStatus === 'O10'
-          ? '1st to 10th points over all outings'
-          : 'Total points over all outings';
+          ? ('1st to 10th points' + (bestNSubtitle ? ' — ' + bestNSubtitle : ' over all outings'))
+          : ('Total points' + (bestNSubtitle ? ' — ' + bestNSubtitle : ' over all outings'));
+        const overallInfoMessage = overallStatus === 'O10'
+          ? ('Overall Leaders shows players ranked by their combined position-based points across rounds (where 1st=10 pts, 2nd=9... 10th=1).' +
+            (overallBestN > 0 ? ' Only the best ' + overallBestN + ' outings count toward each player\'s total.' : '') +
+            '\n\nClick on any player to see contributing rounds and scoring.' +
+            (overallBestN > 0 ? ' Outings that do not count are shown with a line through the score.' : ''))
+          : ('Overall Leaders shows players ranked by their combined Stableford points across rounds.' +
+            (overallBestN > 0 ? ' Only the best ' + overallBestN + ' outings count toward each player\'s total.' : '') +
+            '\n\nClick on any player to see contributing rounds and scoring.' +
+            (overallBestN > 0 ? ' Outings that do not count are shown with a line through the score.' : ''));
         const scheduleKeys = outingOrderKeys.length ? outingOrderKeys : outingKeysSorted;
         const overallOpts = {
           outingOrderKeys: scheduleKeys,
           scoresByOuting,
           outingMeta,
           excludeVisitors: overallExcludeVisitors,
-          isVisitorScore
+          isVisitorScore,
+          overallBestN
         };
         const rankedOverallLeaders = overallStatus === 'O10'
           ? this.buildO10Overall(Object.assign({ isOutingBlurred }, overallOpts)).rankedOverallLeaders
@@ -160,8 +198,12 @@ const LeaderboardPage = {
 
         const overallParts = [];
         overallParts.push('<div class="lb-section lb-section--overall">');
+        overallParts.push('<div class="lb-section-title-row">');
         overallParts.push('<h2 class="lb-section-title">Overall Leaders</h2>');
+        overallParts.push('<button type="button" class="lb-info-btn" data-info-toggle aria-label="About Overall Leaders" aria-expanded="false" aria-controls="overall-leaders-info">i</button>');
+        overallParts.push('</div>');
         overallParts.push('<p class="lb-subsection-title">' + this.escapeHtml(overallSubtitle) + '</p>');
+        overallParts.push('<p id="overall-leaders-info" class="lb-info-message" role="status" aria-live="polite">' + this.escapeHtml(overallInfoMessage).replace(/\n/g, '<br>') + '</p>');
 
         overallParts.push('<div class="lb-overall-grid">');
         overallParts.push('<div class="lb-overall-grid-header"><span>Pos</span><span>Name</span><span>Pts</span></div>');
@@ -193,12 +235,14 @@ const LeaderboardPage = {
                 const d = details[di];
                 const posStr = this.positionLabel(d.position);
                 const stablefordVal = (d.stablefordPts != null ? d.stablefordPts : d.points);
+                const excludedClass = d.countsTowardTotal === false ? ' lb-overall-detail-excluded' : '';
                 const lineText =
                   this.escapeHtml(this.displayText(d.outingName)) + ' - ' +
+                  '<span class="lb-overall-detail-score' + excludedClass + '">' +
                   this.formatNumber(stablefordVal) +
-                  ' pts - <span class="lb-overall-detail-pos">' +
+                  ' pts</span> - <span class="lb-overall-detail-pos' + excludedClass + '">' +
                   this.escapeHtml(posStr) + ' place</span>';
-                overallParts.push('<li><span></span><span>' + lineText + '</span><span class="lb-overall-detail-pts-right">' + this.formatNumber(d.points) + '</span></li>');
+                overallParts.push('<li><span></span><span>' + lineText + '</span><span class="lb-overall-detail-pts-right' + excludedClass + '">' + this.formatNumber(d.points) + '</span></li>');
               }
               overallParts.push('</ul></div>');
             }
@@ -258,8 +302,15 @@ const LeaderboardPage = {
         const showB9 = comps.showB9;
         const showP3 = comps.showP3;
         const p3UsePoints = comps.p3UsePoints; // expected false for P3s
+        const showNH = comps.showNH;
+        const nhUsePoints = comps.nhUsePoints;
+        const nhHoles = comps.nhHoles || [];
+        const nhIndices = LeaderboardShared.nHolesIndices(nhHoles);
         const show2s = comps.show2s;
         const show66 = comps.show66;
+        const showTeam = comps.showTeam;
+        const teamN = comps.teamN;
+        const teamRule = comps.teamRule;
 
         // Per-comp visitor filtering (encoding: docs/VISITOR_LEADERBOARD_ENCODING.md).
         // 18-hole top N filters its own input list; F9/B9/66/P3/2s filter at candidate
@@ -364,17 +415,18 @@ const LeaderboardPage = {
           }
 
           // Same sorting rule as theGolfApp
-          par3Candidates.sort((a, b) => {
-            if (p3UsePoints) {
-              if (a.par3Points !== b.par3Points) return b.par3Points - a.par3Points;
-            } else {
-              if (a.par3Strokes !== b.par3Strokes) return a.par3Strokes - b.par3Strokes;
-            }
-            const hcpA = parseFloat(a.score.handicap) || 0;
-            const hcpB = parseFloat(b.score.handicap) || 0;
-            return hcpB - hcpA;
-          });
+          par3Candidates.sort((a, b) => LeaderboardShared.comparePar3Candidates(a, b, p3UsePoints));
         }
+
+        const nhCandidates = showNH && nhIndices.length
+          ? LeaderboardShared.collectSelectedHolesCandidates(
+              outingScores,
+              nhIndices,
+              comps.excludeVisitorsNH,
+              isVisitorScore
+            )
+          : [];
+        nhCandidates.sort((a, b) => LeaderboardShared.comparePar3Candidates(a, b, nhUsePoints));
 
         // 2s winners: all players with at least one "2"
         const twosWinners = [];
@@ -393,6 +445,32 @@ const LeaderboardPage = {
           }
         }
 
+        let scoreByPlayer = {};
+        let teamWinResult = { scores: [], countbackLabel: null };
+        if (showTeam) {
+          scoreByPlayer = {};
+          for (let tsi = 0; tsi < outingScores.length; tsi++) {
+            const teamScore = outingScores[tsi];
+            const teamPlayerKey = this.safeString(teamScore && teamScore.playerName).toLowerCase();
+            if (teamPlayerKey) scoreByPlayer[teamPlayerKey] = teamScore;
+          }
+          const outingTeams = this.getTeamsForOuting(
+            teamsInput,
+            oKey,
+            outingKeyToOutingId[oKey],
+            courseNameDisplay,
+            outingDateStr
+          );
+          const teamScores = outingTeams.map(team =>
+            LeaderboardShared.buildTeamScoreEntry(team, scoreByPlayer, teamRule, teamN)
+          );
+          teamWinResult = LeaderboardShared.bestWithCountback(
+            teamScores,
+            LeaderboardShared.compareCountbackTeam,
+            LeaderboardShared.getCountbackLabelTeam
+          );
+        }
+
         const scoreCount = rawScores.length;
 
         // Section wrapper
@@ -408,6 +486,8 @@ const LeaderboardPage = {
           outingDateStr
             ? '<span>' + this.formatDate(outingDateStr) + '</span>'
             : '<span></span>';
+        const outingInfoId = 'outing-info-' + oi;
+        sectionParts.push('<div class="lb-section-title-row">');
         sectionParts.push(
           '<h2 class="lb-section-title">' +
             this.escapeHtml(courseNameDisplay) +
@@ -422,9 +502,12 @@ const LeaderboardPage = {
             '</span>' +
           '</h2>'
         );
+        sectionParts.push('<button type="button" class="lb-info-btn" data-info-toggle aria-label="About this outing section" aria-expanded="false" aria-controls="' + outingInfoId + '">i</button>');
+        sectionParts.push('</div>');
         if (blurLeaderboard) {
           sectionParts.push('<p class="lb-blur-notice">Results hidden until the captain reveals them.</p>');
         }
+        sectionParts.push('<div id="' + outingInfoId + '" class="lb-info-message" role="status" aria-live="polite">' + this.buildOutingInfoMessageHtml(comps) + '</div>');
 
         // Mobile block layout
         sectionParts.push('<div class="lb-outing-block-wrap">');
@@ -567,6 +650,38 @@ const LeaderboardPage = {
           }
         }
 
+        // Extra winners: selected N holes.
+        if (showNH && nhCandidates.length > 0) {
+          const bestNH = nhCandidates[0];
+          const bestNHValue = nhUsePoints ? bestNH.par3Points : bestNH.par3Strokes;
+          const bestNHHcp = parseFloat(bestNH.score.handicap) || 0;
+          const tiedNH = nhCandidates.filter(candidate => {
+            const value = nhUsePoints ? candidate.par3Points : candidate.par3Strokes;
+            return value === bestNHValue && (parseFloat(candidate.score.handicap) || 0) === bestNHHcp;
+          });
+          const nhBaseLabel = LeaderboardShared.nHolesLabel(nhHoles.length);
+          const nhLabel = tiedNH.length > 1 ? nhBaseLabel + '*' : nhBaseLabel;
+          const nhSuffix = nhUsePoints ? ' pts' : ' strokes';
+
+          for (let nhi = 0; nhi < tiedNH.length; nhi++) {
+            const candidate = tiedNH[nhi];
+            const value = nhUsePoints ? candidate.par3Points : candidate.par3Strokes;
+            const detail = this.buildHoleDetailHtml(candidate.score, parIndexPairs, nhIndices, undefined, nhUsePoints);
+            const escapedDetail = this.escapeDetailHtmlForAttribute(detail);
+
+            sectionParts.push('<div class="lb-outing-block">');
+            sectionParts.push('<div class="lb-outing-main lb-outing-row" data-detail-html="' + escapedDetail + '">');
+            sectionParts.push('<span class="lb-cell-pos">' + this.escapeHtml(nhLabel) + '</span>');
+            sectionParts.push('<span class="lb-cell-name">' + this.escapeHtml(this.displayText(candidate.score.playerName)) + '</span>');
+            sectionParts.push(this.buildPhotoCellHtml(candidate.score, 'span', 'lb-cell-photo'));
+            sectionParts.push('<span class="lb-cell-hcp">' + this.formatNumber(candidate.score.handicap) + '</span>');
+            sectionParts.push('<span class="lb-cell-pts">' + this.formatNumber(value) + nhSuffix + '</span>');
+            sectionParts.push('</div>');
+            sectionParts.push('<div class="lb-hole-detail-panel"></div>');
+            sectionParts.push('</div>');
+          }
+        }
+
         // Extra winners: 2s (all players with at least one two)
         if (show2s && twosWinners.length > 0) {
           const posLabel2s = twosWinners.length > 1 ? '2s*' : '2s';
@@ -591,6 +706,35 @@ const LeaderboardPage = {
             sectionParts.push('</div>');
             sectionParts.push('<div class="lb-hole-detail-panel"></div>');
             sectionParts.push('</div>');
+          }
+        }
+
+        if (showTeam) {
+          const teamLabel = LeaderboardShared.formatTeamCompMnemonicForLeaderboard(teamRule);
+          const winningTeams = teamWinResult.scores || [];
+          const teamPositionLabel = winningTeams.length > 1 ? teamLabel + '*' : teamLabel;
+          if (winningTeams.length === 0) {
+            const emptyDetail = '<div class="lb-team-detail"><p class="lb-team-detail-title">No players in team.</p></div>';
+            sectionParts.push('<div class="lb-outing-block">');
+            sectionParts.push('<div class="lb-outing-main lb-outing-row lb-outing-main--team" data-detail-html="' + this.escapeDetailHtmlForAttribute(emptyDetail) + '">');
+            sectionParts.push('<span class="lb-cell-pos">' + this.escapeHtml(teamLabel) + '</span>');
+            sectionParts.push('<span class="lb-cell-name lb-cell-name--team-lb">' + LeaderboardShared.formatTeamDisplayNameHtml('', []) + '</span>');
+            sectionParts.push('<span class="lb-cell-pts">—</span>');
+            sectionParts.push('</div><div class="lb-hole-detail-panel"></div></div>');
+          } else {
+            for (let twi = 0; twi < winningTeams.length; twi++) {
+              const team = winningTeams[twi];
+              const teamPlayers = team.playerNames || [];
+              const teamDetail = teamPlayers.length
+                ? LeaderboardShared.buildTeamHoleDetailHtml(teamPlayers, scoreByPlayer, parIndexPairs, teamRule, teamN)
+                : '<div class="lb-team-detail"><p class="lb-team-detail-title">No players in team.</p></div>';
+              sectionParts.push('<div class="lb-outing-block">');
+              sectionParts.push('<div class="lb-outing-main lb-outing-row lb-outing-main--team" data-detail-html="' + this.escapeDetailHtmlForAttribute(teamDetail) + '">');
+              sectionParts.push('<span class="lb-cell-pos">' + this.escapeHtml(teamPositionLabel) + '</span>');
+              sectionParts.push('<span class="lb-cell-name lb-cell-name--team-lb">' + LeaderboardShared.formatTeamDisplayNameHtml(team.teamName, teamPlayers) + '</span>');
+              sectionParts.push('<span class="lb-cell-pts">' + this.formatPointsWithCountback(team.score, teamWinResult.countbackLabel) + '</span>');
+              sectionParts.push('</div><div class="lb-hole-detail-panel"></div></div>');
+            }
           }
         }
 
@@ -707,6 +851,39 @@ const LeaderboardPage = {
           }
         }
 
+        if (showNH) {
+          if (nhIndices.length === 0) {
+            sectionParts.push('<tr>');
+            sectionParts.push('<td class="leaderboard-position">NH</td>');
+            sectionParts.push('<td colspan="4" class="lb-par3-detail">N-holes data not available for this outing.</td>');
+            sectionParts.push('</tr>');
+          } else if (nhCandidates.length > 0) {
+            const bestNH = nhCandidates[0];
+            const bestNHValue = nhUsePoints ? bestNH.par3Points : bestNH.par3Strokes;
+            const bestNHHcp = parseFloat(bestNH.score.handicap) || 0;
+            const tiedNH = nhCandidates.filter(candidate => {
+              const value = nhUsePoints ? candidate.par3Points : candidate.par3Strokes;
+              return value === bestNHValue && (parseFloat(candidate.score.handicap) || 0) === bestNHHcp;
+            });
+            const nhBaseLabel = LeaderboardShared.nHolesLabel(nhHoles.length);
+            const nhLabel = tiedNH.length > 1 ? nhBaseLabel + '*' : nhBaseLabel;
+            const nhSuffix = nhUsePoints ? ' pts' : ' strokes';
+            for (let nhti = 0; nhti < tiedNH.length; nhti++) {
+              const candidate = tiedNH[nhti];
+              const value = nhUsePoints ? candidate.par3Points : candidate.par3Strokes;
+              const detail = this.buildHoleDetailHtml(candidate.score, parIndexPairs, nhIndices, undefined, nhUsePoints);
+              sectionParts.push('<tr class="lb-outing-row" data-detail-html="' + this.escapeDetailHtmlForAttribute(detail) + '">');
+              sectionParts.push('<td class="leaderboard-position">' + this.escapeHtml(nhLabel) + '</td>');
+              sectionParts.push('<td class="leaderboard-player-name lb-name-cell">' + this.escapeHtml(this.displayText(candidate.score.playerName)) + '</td>');
+              sectionParts.push(this.buildPhotoCellHtml(candidate.score, 'td', 'lb-photo-cell'));
+              sectionParts.push('<td class="text-center leaderboard-section">' + this.formatNumber(candidate.score.handicap) + '</td>');
+              sectionParts.push('<td class="text-right leaderboard-points">' + this.formatNumber(value) + nhSuffix + '</td>');
+              sectionParts.push('</tr>');
+              sectionParts.push('<tr class="lb-detail-row lb-detail-row--table"><td colspan="5">' + detail + '</td></tr>');
+            }
+          }
+        }
+
         if (show2s && twosWinners.length > 0) {
           const tableLabel2s = twosWinners.length > 1 ? '2s*' : '2s';
           for (let t2t = 0; t2t < twosWinners.length; t2t++) {
@@ -725,6 +902,35 @@ const LeaderboardPage = {
             sectionParts.push('<td class="text-right leaderboard-points">—</td>');
             sectionParts.push('</tr>');
             sectionParts.push('<tr class="lb-detail-row lb-detail-row--table"><td colspan="5">' + twosDetailTable + '</td></tr>');
+          }
+        }
+
+        if (showTeam) {
+          const teamLabel = LeaderboardShared.formatTeamCompMnemonicForLeaderboard(teamRule);
+          const winningTeams = teamWinResult.scores || [];
+          const teamPositionLabel = winningTeams.length > 1 ? teamLabel + '*' : teamLabel;
+          if (winningTeams.length === 0) {
+            const emptyDetail = '<div class="lb-team-detail"><p class="lb-team-detail-title">No players in team.</p></div>';
+            sectionParts.push('<tr class="lb-outing-row" data-detail-html="' + this.escapeDetailHtmlForAttribute(emptyDetail) + '">');
+            sectionParts.push('<td class="leaderboard-position">' + this.escapeHtml(teamLabel) + '</td>');
+            sectionParts.push('<td colspan="3" class="leaderboard-player-name lb-name-cell lb-name-cell--team-lb">' + LeaderboardShared.formatTeamDisplayNameHtml('', []) + '</td>');
+            sectionParts.push('<td class="text-right leaderboard-points">—</td>');
+            sectionParts.push('</tr>');
+            sectionParts.push('<tr class="lb-detail-row lb-detail-row--table"><td colspan="5">' + emptyDetail + '</td></tr>');
+          } else {
+            for (let twt = 0; twt < winningTeams.length; twt++) {
+              const team = winningTeams[twt];
+              const teamPlayers = team.playerNames || [];
+              const detail = teamPlayers.length
+                ? LeaderboardShared.buildTeamHoleDetailHtml(teamPlayers, scoreByPlayer, parIndexPairs, teamRule, teamN)
+                : '<div class="lb-team-detail"><p class="lb-team-detail-title">No players in team.</p></div>';
+              sectionParts.push('<tr class="lb-outing-row" data-detail-html="' + this.escapeDetailHtmlForAttribute(detail) + '">');
+              sectionParts.push('<td class="leaderboard-position">' + this.escapeHtml(teamPositionLabel) + '</td>');
+              sectionParts.push('<td colspan="3" class="leaderboard-player-name lb-name-cell lb-name-cell--team-lb">' + LeaderboardShared.formatTeamDisplayNameHtml(team.teamName, teamPlayers) + '</td>');
+              sectionParts.push('<td class="text-right leaderboard-points">' + this.formatPointsWithCountback(team.score, teamWinResult.countbackLabel) + '</td>');
+              sectionParts.push('</tr>');
+              sectionParts.push('<tr class="lb-detail-row lb-detail-row--table"><td colspan="5">' + detail + '</td></tr>');
+            }
           }
         }
 
@@ -761,6 +967,12 @@ const LeaderboardPage = {
       this.setupCircularCarousel(container);
 
       // --- Interactions (match theGolfApp) ---
+      container.querySelectorAll('.lb-carousel-panel:not(.lb-carousel-panel--clone) .lb-outing-row').forEach(row => {
+        row.setAttribute('role', 'button');
+        row.setAttribute('tabindex', '0');
+        row.setAttribute('aria-expanded', 'false');
+      });
+
       const toggleOverallDetail = overallRow => {
         const myDetail = overallRow && overallRow.nextElementSibling;
         const section = overallRow && overallRow.closest && overallRow.closest('.lb-section--overall');
@@ -793,6 +1005,29 @@ const LeaderboardPage = {
           return;
         }
 
+        const infoMessage = e.target && e.target.closest && e.target.closest('.lb-info-message');
+        if (infoMessage) {
+          infoMessage.classList.remove('is-open');
+          const infoSection = infoMessage.closest('.lb-section');
+          const closeButton = infoSection ? infoSection.querySelector('[data-info-toggle]') : null;
+          if (closeButton) closeButton.setAttribute('aria-expanded', 'false');
+          return;
+        }
+
+        const infoButton = e.target && e.target.closest && e.target.closest('[data-info-toggle]');
+        if (infoButton) {
+          const section = infoButton.closest('.lb-section');
+          const controlledId = infoButton.getAttribute('aria-controls');
+          const infoElement = controlledId && section
+            ? section.querySelector('#' + controlledId)
+            : section && section.querySelector('.lb-info-message');
+          if (infoElement) {
+            const isOpen = infoElement.classList.toggle('is-open');
+            infoButton.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+          }
+          return;
+        }
+
         const overallRow = e.target && e.target.closest && e.target.closest('.lb-overall-row-with-detail');
         if (overallRow) {
           toggleOverallDetail(overallRow);
@@ -812,6 +1047,7 @@ const LeaderboardPage = {
 
           if (blockRow.classList.contains('is-open')) {
             blockRow.classList.remove('is-open');
+            blockRow.setAttribute('aria-expanded', 'false');
             if (panel) panel.classList.remove('is-visible');
             return;
           }
@@ -819,7 +1055,10 @@ const LeaderboardPage = {
           const allPanels = container.querySelectorAll('.lb-hole-detail-panel');
           for (let p = 0; p < allPanels.length; p++) allPanels[p].classList.remove('is-visible');
           const openBlocks = container.querySelectorAll('.lb-outing-main.is-open');
-          for (let o = 0; o < openBlocks.length; o++) openBlocks[o].classList.remove('is-open');
+          for (let o = 0; o < openBlocks.length; o++) {
+            openBlocks[o].classList.remove('is-open');
+            openBlocks[o].setAttribute('aria-expanded', 'false');
+          }
 
           const htmlAttr = blockRow.getAttribute('data-detail-html');
           if (htmlAttr && panel) {
@@ -830,13 +1069,17 @@ const LeaderboardPage = {
             panel.innerHTML = decoded;
             panel.classList.add('is-visible');
             blockRow.classList.add('is-open');
+            blockRow.setAttribute('aria-expanded', 'true');
           }
           return;
         }
 
         if (detailRow && detailRow.classList && detailRow.classList.contains('is-open')) {
           const prevRow = detailRow.previousElementSibling;
-          if (prevRow && prevRow.classList) prevRow.classList.remove('is-open');
+          if (prevRow && prevRow.classList) {
+            prevRow.classList.remove('is-open');
+            prevRow.setAttribute('aria-expanded', 'false');
+          }
           detailRow.classList.remove('is-open');
           return;
         }
@@ -849,11 +1092,22 @@ const LeaderboardPage = {
             const isOpen = next.classList.contains('is-open');
             if (row.closest('table')) {
               const open = row.closest('table').querySelectorAll('tr.lb-detail-row.is-open');
-              for (let i = 0; i < open.length; i++) open[i].classList.remove('is-open');
+              for (let i = 0; i < open.length; i++) {
+                open[i].classList.remove('is-open');
+                const previousRow = open[i].previousElementSibling;
+                if (previousRow) {
+                  previousRow.classList.remove('is-open');
+                  previousRow.setAttribute('aria-expanded', 'false');
+                }
+              }
             }
             if (!isOpen) {
               next.classList.add('is-open');
               row.classList.add('is-open');
+              row.setAttribute('aria-expanded', 'true');
+            } else {
+              row.classList.remove('is-open');
+              row.setAttribute('aria-expanded', 'false');
             }
           }
         }
@@ -865,6 +1119,12 @@ const LeaderboardPage = {
         if (overallRow) {
           e.preventDefault();
           toggleOverallDetail(overallRow);
+          return;
+        }
+        const outingRow = e.target && e.target.closest && e.target.closest('.lb-outing-row[role="button"]');
+        if (outingRow) {
+          e.preventDefault();
+          outingRow.click();
         }
       });
     } catch (err) {
@@ -886,10 +1146,17 @@ const LeaderboardPage = {
 
     const cloneLast = realPanels[realPanels.length - 1].cloneNode(true);
     const cloneFirst = realPanels[0].cloneNode(true);
-    cloneLast.classList.add('lb-carousel-panel--clone');
-    cloneFirst.classList.add('lb-carousel-panel--clone');
-    cloneLast.setAttribute('aria-hidden', 'true');
-    cloneFirst.setAttribute('aria-hidden', 'true');
+    const prepareClone = clone => {
+      clone.classList.add('lb-carousel-panel--clone');
+      clone.setAttribute('aria-hidden', 'true');
+      clone.querySelectorAll('[id]').forEach(element => element.removeAttribute('id'));
+      clone.querySelectorAll('a, button, [tabindex]').forEach(element => {
+        element.setAttribute('tabindex', '-1');
+        if (element.tagName === 'BUTTON') element.setAttribute('disabled', '');
+      });
+    };
+    prepareClone(cloneLast);
+    prepareClone(cloneFirst);
 
     track.insertBefore(cloneLast, realPanels[0]);
     track.appendChild(cloneFirst);
@@ -982,76 +1249,10 @@ const LeaderboardPage = {
     return c + '|' + d;
   },
 
-  getCompsForScores: function(outings, courseName, dateStr, scoreDates) {
-    const cn = this.safeString(courseName).toLowerCase();
-    const dt = this.safeString(dateStr).trim();
-    if (!outings || !outings.length) return '';
-    for (let i = 0; i < outings.length; i++) {
-      const o = outings[i];
-      if (this.safeString(o.courseName).toLowerCase() === cn && this.safeString(o.date).trim() === dt) {
-        return this.safeString(o.comps);
-      }
-    }
-    const byCourse = [];
-    for (let j = 0; j < outings.length; j++) {
-      const o2 = outings[j];
-      if (this.safeString(o2.courseName).toLowerCase() === cn) byCourse.push(o2);
-    }
-    if (byCourse.length === 0) return '';
-    if (byCourse.length === 1) return this.safeString(byCourse[0].comps);
-    const scoreDateCounts = {};
-    const dates = scoreDates || [];
-    for (let k = 0; k < dates.length; k++) {
-      const d = this.safeString(dates[k]).trim();
-      scoreDateCounts[d] = (scoreDateCounts[d] || 0) + 1;
-    }
-    let best = byCourse[0];
-    let bestCount = scoreDateCounts[this.safeString(best.date).trim()] || 0;
-    for (let m = 1; m < byCourse.length; m++) {
-      const cnt = scoreDateCounts[this.safeString(byCourse[m].date).trim()] || 0;
-      if (cnt > bestCount) {
-        best = byCourse[m];
-        bestCount = cnt;
-      }
-    }
-    return this.safeString(best.comps);
-  },
+  getCompsForScores: LeaderboardShared.getCompsForScores,
 
   /** Match theGolfApp `leaderboard-shared.getBlurLeaderboardForScores`. */
-  getBlurLeaderboardForScores: function(outings, courseName, dateStr, scoreDates) {
-    const cn = this.safeString(courseName).toLowerCase();
-    const dt = this.safeString(dateStr).trim();
-    if (!outings || !outings.length) return false;
-    for (let i = 0; i < outings.length; i++) {
-      const o = outings[i];
-      if (this.safeString(o.courseName).toLowerCase() === cn && this.safeString(o.date).trim() === dt) {
-        return !!o.blurLeaderboard;
-      }
-    }
-    const byCourse = [];
-    for (let j = 0; j < outings.length; j++) {
-      const o2 = outings[j];
-      if (this.safeString(o2.courseName).toLowerCase() === cn) byCourse.push(o2);
-    }
-    if (byCourse.length === 0) return false;
-    if (byCourse.length === 1) return !!byCourse[0].blurLeaderboard;
-    const scoreDateCounts = {};
-    const dates = scoreDates || [];
-    for (let k = 0; k < dates.length; k++) {
-      const d = this.safeString(dates[k]).trim();
-      scoreDateCounts[d] = (scoreDateCounts[d] || 0) + 1;
-    }
-    let best = byCourse[0];
-    let bestCount = scoreDateCounts[this.safeString(best.date).trim()] || 0;
-    for (let m = 1; m < byCourse.length; m++) {
-      const cnt = scoreDateCounts[this.safeString(byCourse[m].date).trim()] || 0;
-      if (cnt > bestCount) {
-        best = byCourse[m];
-        bestCount = cnt;
-      }
-    }
-    return !!best.blurLeaderboard;
-  },
+  getBlurLeaderboardForScores: LeaderboardShared.getBlurLeaderboardForScores,
 
   // UI formatting: sometimes values arrive URL-encoded (e.g. "Corballis+Links").
   // Replace "+" with spaces for display only.
@@ -1108,6 +1309,120 @@ const LeaderboardPage = {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
+  },
+
+  escapeDetailHtmlForAttribute: function(html) {
+    return String(html || '')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  },
+
+  buildOutingInfoMessageHtml: function(comps) {
+    const rows = [];
+    const addRow = (label, text) => {
+      rows.push(
+        '<div class="lb-outing-info-line"><span class="lb-outing-info-comp">' +
+        this.escapeHtml(label) +
+        '</span><span>' +
+        this.escapeHtml(text) +
+        '</span></div>'
+      );
+    };
+    if (comps.topN > 0) addRow('18 Holes:', 'Top ' + comps.topN + ' places');
+    const f9Excl = comps.f9ExclN != null ? comps.f9ExclN : 0;
+    const b9Excl = comps.b9ExclN != null ? comps.b9ExclN : 0;
+    if (comps.showF9) {
+      addRow(
+        'Front 9:',
+        f9Excl === 0 ? 'Best Front 9 (stableford)' :
+          f9Excl === 1 ? '18 Hole winner excluded' : 'Top ' + f9Excl + ' 18 holes places excluded'
+      );
+    }
+    if (comps.showB9) {
+      addRow(
+        'Back 9:',
+        b9Excl === 0 ? 'Best Back 9 (stableford)' :
+          b9Excl === 1 ? '18 Hole winner excluded' : 'Top ' + b9Excl + ' 18 holes places excluded'
+      );
+    }
+    if (comps.showP3) {
+      addRow('Par 3:', 'Best ' + (comps.p3UsePoints ? 'points' : 'strokes') + ' total on par 3s');
+    }
+    if (comps.showNH) {
+      const holes = comps.nhHoles || [];
+      const label = holes.length ? LeaderboardShared.nHolesLabel(holes.length) : 'N-holes';
+      addRow(
+        label + ':',
+        holes.length
+          ? 'Best ' + (comps.nhUsePoints ? 'points' : 'strokes') + ' total on holes ' + holes.join(', ')
+          : 'Selected holes not available'
+      );
+    }
+    if (comps.show2s) addRow("Two's:", "Any gross 2's carded");
+    if (comps.show66) addRow('66:', 'Best 6 holes front & back (stableford)');
+    if (comps.showTeam) {
+      let teamDescription;
+      if (comps.teamRule === 'waltz') {
+        teamDescription = 'Best score based on Waltz rules: 1 score counts, then 2, then 3, repeating';
+      } else if (comps.teamRule === 'dustybin') {
+        teamDescription = 'Best score based on Dusty Bin rules: 3 scores count, then 2, then 1, repeating';
+      } else {
+        teamDescription =
+          'Top team based on best ' +
+          (comps.teamRule === 'total' ? 'total' : 'hole') +
+          ' (' +
+          (comps.teamN || 1) +
+          ((comps.teamN || 1) === 1 ? ' score counts' : ' scores count') +
+          ')';
+      }
+      addRow('Team:', teamDescription);
+    }
+    return (
+      '<p class="lb-outing-info-intro">This shows the results of the competitions set up for this outing as follows...</p>' +
+      '<div class="lb-outing-info-lines">' + rows.join('') + '</div>' +
+      '<div class="lb-outing-info-gap" aria-hidden="true"></div>' +
+      '<p class="lb-outing-info-outro">Click on any line to see a full breakout of the scoring</p>'
+    );
+  },
+
+  /**
+   * Resolve optional frontend-only team input. Accepts a teamsByOuting map, a
+   * flat teams array, or an object containing either `teamsByOuting` or `teams`.
+   */
+  getTeamsForOuting: function(input, outingKey, outingId, courseName, outingDate) {
+    let source = input || {};
+    if (source && source.teamsByOuting != null) source = source.teamsByOuting;
+    else if (source && source.teams != null) source = source.teams;
+
+    const id = outingId != null ? String(outingId) : '';
+    const key = this.safeString(outingKey).toLowerCase();
+    const course = this.safeString(courseName).toLowerCase();
+    const date = this.safeString(outingDate);
+
+    if (Array.isArray(source)) {
+      return source.filter(team => {
+        if (!team) return false;
+        const teamOutingId = team.outingId != null ? String(team.outingId) : '';
+        if (id && teamOutingId) return teamOutingId === id;
+        const teamKey = this.safeString(team.outingKey || team.key).toLowerCase();
+        if (teamKey) return teamKey === key || teamKey.indexOf(key + '|') === 0;
+        const teamCourse = this.safeString(team.courseName || team.course).toLowerCase();
+        const teamDate = this.safeString(team.date || team.outingDate);
+        return !!(teamCourse && teamDate && teamCourse === course && teamDate === date);
+      });
+    }
+
+    if (!source || typeof source !== 'object') return [];
+    if (id && Array.isArray(source[id])) return source[id];
+    if (Array.isArray(source[outingKey])) return source[outingKey];
+    for (const sourceKey of Object.keys(source)) {
+      const normalizedKey = this.safeString(sourceKey).toLowerCase();
+      if ((normalizedKey === key || normalizedKey.indexOf(key + '|') === 0) && Array.isArray(source[sourceKey])) {
+        return source[sourceKey];
+      }
+    }
+    return [];
   },
 
   /** Visitors-only 18-hole top-N board (mobile blocks + desktop table) at bottom of an outing panel. */
@@ -1204,13 +1519,7 @@ const LeaderboardPage = {
     return d.toLocaleDateString('en-GB');
   },
 
-  getPar3Indices: function(pars) {
-    const out = [];
-    for (let i = 0; i < pars.length; i++) {
-      if (pars[i] === 3) out.push(i);
-    }
-    return out;
-  },
+  getPar3Indices: LeaderboardShared.getPar3Indices,
 
   /**
    * Society status: tokenize on commas/whitespace and uppercase. Recognises
@@ -1222,58 +1531,14 @@ const LeaderboardPage = {
    * `excludeVisitorsOverall` is always `false` when Overall is off (`overallMode === ''`).
    * Mirrors `LeaderboardShared.parseSocietyOverallStatus` in theGolfApp.
    */
-  parseSocietyOverallStatus: function(statusStr) {
-    const parts = this.safeString(statusStr).toUpperCase().split(/[,\s]+/).filter(Boolean);
-    let overallMode = '';
-    let includeVisitorsInOverall = false;
-    for (let i = 0; i < parts.length; i++) {
-      const p = parts[i];
-      if (p === 'OAPV') {
-        overallMode = 'OAP';
-        includeVisitorsInOverall = true;
-      } else if (p === 'O10V') {
-        overallMode = 'O10';
-        includeVisitorsInOverall = true;
-      } else if (p === 'OAP' || p === 'O10') {
-        overallMode = p;
-      }
-    }
-    if (!includeVisitorsInOverall && (overallMode === 'OAP' || overallMode === 'O10')) {
-      for (let j = 0; j < parts.length; j++) {
-        if (parts[j] === 'V') { includeVisitorsInOverall = true; break; }
-      }
-    }
-    return {
-      overallMode,
-      excludeVisitorsOverall: overallMode ? !includeVisitorsInOverall : false
-    };
-  },
+  parseSocietyOverallStatus: LeaderboardShared.parseSocietyOverallStatus,
 
   /**
    * Build a `(score) => boolean` classifier from the society players list.
    * Prefers `score.playerId` over `score.playerName` (case-insensitive name fallback).
    * Mirrors `LeaderboardShared.buildIsVisitorFromPlayers` in theGolfApp.
    */
-  buildIsVisitorFromPlayers: function(players) {
-    const byId = {};
-    const byName = {};
-    const list = players || [];
-    for (let i = 0; i < list.length; i++) {
-      const p = list[i];
-      if (!p) continue;
-      const pid = (p.playerId != null ? String(p.playerId) : '').trim();
-      if (pid) byId[pid] = p.visitor === true;
-      const nm = this.safeString(p.playerName).toLowerCase();
-      if (nm) byName[nm] = p.visitor === true;
-    }
-    return function(score) {
-      if (!score) return false;
-      const sid = (score.playerId != null ? String(score.playerId) : '').trim();
-      if (sid && Object.prototype.hasOwnProperty.call(byId, sid)) return byId[sid];
-      const sn = (score.playerName != null ? String(score.playerName) : '').trim().toLowerCase();
-      return !!byName[sn];
-    };
-  },
+  buildIsVisitorFromPlayers: LeaderboardShared.buildIsVisitorFromPlayers,
 
   /**
    * Comps parser: tokens are case-insensitive and split on commas/whitespace.
@@ -1282,276 +1547,40 @@ const LeaderboardPage = {
    * `LeaderboardShared.parseComps` in theGolfApp; team tokens are tolerated
    * but BGS does not render them.
    */
-  parseComps: function(compsStr) {
-    const tokens = this.safeString(compsStr).toLowerCase().split(/[,\s]+/).filter(Boolean);
-    const MAX_PLACES = 20;
-
-    const out = {
-      topN: 0,
-      f9ExclN: 0,
-      b9ExclN: 0,
-      showF9: false,
-      showB9: false,
-      showP3: false,
-      p3UsePoints: false,
-      show2s: false,
-      show66: false,
-      excludeVisitors18: true,
-      excludeVisitorsF9: true,
-      excludeVisitorsB9: true,
-      excludeVisitorsP3: true,
-      excludeVisitors2s: true,
-      excludeVisitors66: true
-    };
-
-    for (let i = 0; i < tokens.length; i++) {
-      const t = tokens[i];
-      if (t.indexOf('18:') === 0) {
-        const inc18 = t.length > 3 && t.slice(-1) === 'v';
-        const n18 = inc18 ? t.slice(3, -1) : t.slice(3);
-        out.topN = Math.min(MAX_PLACES, parseInt(n18, 10) || 0);
-        if (inc18) out.excludeVisitors18 = false;
-      } else if (t === 'f9v') {
-        out.showF9 = true; out.f9ExclN = 0; out.excludeVisitorsF9 = false;
-      } else if (t === 'f9') {
-        out.showF9 = true; out.f9ExclN = 0;
-      } else if (t.indexOf('f9:') === 0) {
-        out.showF9 = true;
-        const incF9 = t.slice(-1) === 'v';
-        const tailF9 = incF9 ? t.slice(3, -1) : t.slice(3);
-        out.f9ExclN = Math.min(MAX_PLACES, parseInt(tailF9, 10) || 0);
-        if (incF9) out.excludeVisitorsF9 = false;
-      } else if (t === 'b9v') {
-        out.showB9 = true; out.b9ExclN = 0; out.excludeVisitorsB9 = false;
-      } else if (t === 'b9') {
-        out.showB9 = true; out.b9ExclN = 0;
-      } else if (t.indexOf('b9:') === 0) {
-        out.showB9 = true;
-        const incB9 = t.slice(-1) === 'v';
-        const tailB9 = incB9 ? t.slice(3, -1) : t.slice(3);
-        out.b9ExclN = Math.min(MAX_PLACES, parseInt(tailB9, 10) || 0);
-        if (incB9) out.excludeVisitorsB9 = false;
-      } else if (t === 'p3sv') {
-        out.showP3 = true; out.p3UsePoints = false; out.excludeVisitorsP3 = false;
-      } else if (t === 'p3s') {
-        out.showP3 = true; out.p3UsePoints = false;
-      } else if (t === 'p3pv') {
-        out.showP3 = true; out.p3UsePoints = true; out.excludeVisitorsP3 = false;
-      } else if (t === 'p3p') {
-        out.showP3 = true; out.p3UsePoints = true;
-      } else if (t === '2sv') {
-        out.show2s = true; out.excludeVisitors2s = false;
-      } else if (t === '2s') {
-        out.show2s = true;
-      } else if (t === '66v') {
-        out.show66 = true; out.excludeVisitors66 = false;
-      } else if (t === '66') {
-        out.show66 = true;
-      }
-      // Team tokens (`th:`, `tt:`, `tw`, `td`, `team`, `team:`) are intentionally
-      // ignored: BGS leaderboard does not render team comps. A trailing `v` on
-      // hand-edited `th:Nv` / `tt:Nv` is harmless because we don't use teamN here.
-    }
-
-    return out;
-  },
+  parseComps: LeaderboardShared.parseComps,
 
   // --- Ranking and countback (adapted from theGolfApp) ---
 
-  sumHolePoints: function(score, indices) {
-    const pts = (score && score.holePoints) ? score.holePoints : [];
-    let sum = 0;
-    for (let i = 0; i < indices.length; i++) {
-      const p = parseFloat(pts[indices[i]]);
-      if (!isNaN(p)) sum += p;
-    }
-    return sum;
-  },
+  sumHolePoints: LeaderboardShared.sumHolePoints,
 
-  compareCountbackOverall: function(a, b) {
-    const pa = parseFloat(a.totalPoints) || 0;
-    const pb = parseFloat(b.totalPoints) || 0;
-    if (pa !== pb) return pb - pa;
+  compareCountbackOverall: LeaderboardShared.compareCountbackOverall,
 
-    const ranges = [[9,10,11,12,13,14,15,16,17], [12,13,14,15,16,17], [15,16,17], [17]];
-    for (let r = 0; r < ranges.length; r++) {
-      const sa = this.sumHolePoints(a, ranges[r]);
-      const sb = this.sumHolePoints(b, ranges[r]);
-      if (sa !== sb) return sb - sa;
-    }
-    return 0;
-  },
+  compareCountbackF9: LeaderboardShared.compareCountbackF9,
 
-  compareCountbackF9: function(a, b) {
-    const pa = parseFloat(a.outPoints) || 0;
-    const pb = parseFloat(b.outPoints) || 0;
-    if (pa !== pb) return pb - pa;
-
-    const ranges = [[3,4,5,6,7,8], [6,7,8], [8]];
-    for (let r = 0; r < ranges.length; r++) {
-      const sa = this.sumHolePoints(a, ranges[r]);
-      const sb = this.sumHolePoints(b, ranges[r]);
-      if (sa !== sb) return sb - sa;
-    }
-    return 0;
-  },
-
-  compareCountbackB9: function(a, b) {
-    const pa = parseFloat(a.inPoints) || 0;
-    const pb = parseFloat(b.inPoints) || 0;
-    if (pa !== pb) return pb - pa;
-
-    const ranges = [[12,13,14,15,16,17], [15,16,17], [17]];
-    for (let r = 0; r < ranges.length; r++) {
-      const sa = this.sumHolePoints(a, ranges[r]);
-      const sb = this.sumHolePoints(b, ranges[r]);
-      if (sa !== sb) return sb - sa;
-    }
-    return 0;
-  },
+  compareCountbackB9: LeaderboardShared.compareCountbackB9,
 
   /** "Best 6+6": sum of the 6 highest-point holes in F9 plus the 6 highest in B9.
    *  Tie-break uses descending hole index (later hole first), matching theGolfApp. */
-  points66: function(score) {
-    const pts = (score && score.holePoints) || [];
-    const sliceSum = (start, end) => {
-      const list = [];
-      for (let i = start; i < end; i++) {
-        const p = parseFloat(pts[i]);
-        list.push({ i, p: isNaN(p) ? 0 : p });
-      }
-      list.sort((a, b) => (a.p !== b.p ? b.p - a.p : b.i - a.i));
-      let sum = 0;
-      for (let k = 0; k < 6 && k < list.length; k++) sum += list[k].p;
-      return sum;
-    };
-    return sliceSum(0, 9) + sliceSum(9, 18);
-  },
+  points66: LeaderboardShared.points66,
 
   /** Hole indices contributing to `points66`, used for detail-panel highlighting. */
-  indices66: function(score) {
-    const pts = (score && score.holePoints) || [];
-    const sliceIdx = (start, end) => {
-      const list = [];
-      for (let i = start; i < end; i++) {
-        const p = parseFloat(pts[i]);
-        list.push({ i, p: isNaN(p) ? 0 : p });
-      }
-      list.sort((a, b) => (a.p !== b.p ? b.p - a.p : b.i - a.i));
-      const out = [];
-      for (let k = 0; k < 6 && k < list.length; k++) out.push(list[k].i);
-      return out;
-    };
-    return sliceIdx(0, 9).concat(sliceIdx(9, 18));
-  },
+  indices66: LeaderboardShared.indices66,
 
-  compareCountback66: function(a, b) {
-    const pa = this.points66(a);
-    const pb = this.points66(b);
-    if (pa !== pb) return pb - pa;
-    return this.compareCountbackOverall(a, b);
-  },
+  compareCountback66: LeaderboardShared.compareCountback66,
 
-  getCountbackLabelOverall: function(winner, runnerUp) {
-    const wPts = parseFloat(winner.totalPoints) || 0;
-    const rPts = parseFloat(runnerUp.totalPoints) || 0;
-    if (wPts > rPts) return null;
+  getCountbackLabelOverall: LeaderboardShared.getCountbackLabelOverall,
 
-    const overallLabels = ['back-9', 'back-6', 'back-3', 'back-1'];
-    const overallRanges = [[9,10,11,12,13,14,15,16,17], [12,13,14,15,16,17], [15,16,17], [17]];
-    for (let r = 0; r < overallRanges.length; r++) {
-      const sw = this.sumHolePoints(winner, overallRanges[r]);
-      const sr = this.sumHolePoints(runnerUp, overallRanges[r]);
-      if (sw > sr) return overallLabels[r];
-    }
-    return null;
-  },
+  getCountbackLabelF9: LeaderboardShared.getCountbackLabelF9,
 
-  getCountbackLabelF9: function(winner, runnerUp) {
-    const wPts = parseFloat(winner.outPoints) || 0;
-    const rPts = parseFloat(runnerUp.outPoints) || 0;
-    if (wPts > rPts) return null;
+  getCountbackLabelB9: LeaderboardShared.getCountbackLabelB9,
 
-    const f9Labels = ['4-9', '7-9', 'hole 9'];
-    const f9Ranges = [[3,4,5,6,7,8], [6,7,8], [8]];
-    for (let r = 0; r < f9Ranges.length; r++) {
-      const sw = this.sumHolePoints(winner, f9Ranges[r]);
-      const sr = this.sumHolePoints(runnerUp, f9Ranges[r]);
-      if (sw > sr) return f9Labels[r];
-    }
-    return null;
-  },
+  getCountbackLabel66: LeaderboardShared.getCountbackLabel66,
 
-  getCountbackLabelB9: function(winner, runnerUp) {
-    const wPts = parseFloat(winner.inPoints) || 0;
-    const rPts = parseFloat(runnerUp.inPoints) || 0;
-    if (wPts > rPts) return null;
+  formatPointsWithCountback: LeaderboardShared.formatPointsWithCountback,
 
-    const b9Labels = ['back-6', 'back-3', 'back-1'];
-    const b9Ranges = [[12,13,14,15,16,17], [15,16,17], [17]];
-    for (let r = 0; r < b9Ranges.length; r++) {
-      const sw = this.sumHolePoints(winner, b9Ranges[r]);
-      const sr = this.sumHolePoints(runnerUp, b9Ranges[r]);
-      if (sw > sr) return b9Labels[r];
-    }
-    return null;
-  },
+  rankWithCountback: LeaderboardShared.rankWithCountback,
 
-  getCountbackLabel66: function(winner, runnerUp) {
-    if (this.points66(winner) > this.points66(runnerUp)) return null;
-    return this.getCountbackLabelOverall(winner, runnerUp);
-  },
-
-  formatPointsWithCountback: function(points, countbackLabel) {
-    const p = this.formatNumber(points);
-    if (!countbackLabel) return p;
-    return '<span class="lb-countback">(' + this.escapeHtml(countbackLabel) + ')</span> ' + p;
-  },
-
-  rankWithCountback: function(scores, compareFn, maxPositions, getLabelFn) {
-    if (!scores || scores.length === 0) return [];
-    const sorted = scores.slice().sort(compareFn);
-    const result = [];
-    let runningCount = 0;
-    let i = 0;
-    while (result.length < maxPositions && i < sorted.length) {
-      const group = [sorted[i]];
-      while (i + 1 < sorted.length && compareFn(sorted[i], sorted[i + 1]) === 0) {
-        i++;
-        group.push(sorted[i]);
-      }
-
-      let countbackLabel = null;
-      if (group.length === 1 && i + 1 < sorted.length && getLabelFn) {
-        countbackLabel = getLabelFn(group[0], sorted[i + 1]);
-      }
-
-      const n = runningCount + 1;
-      const suf =
-        (n % 10 === 1 && n !== 11) ? 'st' :
-        (n % 10 === 2 && n !== 12) ? 'nd' :
-        (n % 10 === 3 && n !== 13) ? 'rd' : 'th';
-      const ord = n + suf + (group.length > 1 ? '*' : '');
-      result.push({ position: n, label: ord, scores: group, countbackLabel });
-
-      runningCount += group.length;
-      i++;
-    }
-    return result;
-  },
-
-  bestWithCountback: function(candidates, compareFn, getLabelFn) {
-    if (!candidates || candidates.length === 0) return { scores: [], countbackLabel: null };
-    const sorted = candidates.slice().sort(compareFn);
-    const best = [sorted[0]];
-    for (let j = 1; j < sorted.length && compareFn(sorted[0], sorted[j]) === 0; j++) best.push(sorted[j]);
-
-    let countbackLabel = null;
-    if (best.length === 1 && sorted.length > 1 && getLabelFn) {
-      countbackLabel = getLabelFn(best[0], sorted[1]);
-    }
-    return { scores: best, countbackLabel };
-  },
+  bestWithCountback: LeaderboardShared.bestWithCountback,
 
   rankOverallByPoints: function(players) {
     if (!players || players.length === 0) return [];
@@ -1599,19 +1628,10 @@ const LeaderboardPage = {
     return (s[n - 1] || n + 'th');
   },
 
-  par3StrokeToLabel: function(strokes) {
-    const s = parseInt(strokes, 10);
-    if (isNaN(s) || s < 1) return '-';
-    if (s === 1) return 'Ace';
-    if (s === 2) return 'Birdie';
-    if (s === 3) return 'Par';
-    if (s === 4) return 'Bogey';
-    if (s === 5) return 'Double';
-    return 'Triple+';
-  },
+  par3StrokeToLabel: LeaderboardShared.par3StrokeToLabel,
 
   // OAP overall: sum of Stableford points across outings (best card per player per outing).
-  buildOapOverall: function({ outingOrderKeys, scoresByOuting, outingMeta, scores, excludeVisitors, isVisitorScore, isOutingBlurred }) {
+  buildOapOverall: function({ outingOrderKeys, scoresByOuting, outingMeta, scores, excludeVisitors, isVisitorScore, isOutingBlurred, overallBestN }) {
     const skipVisitor = excludeVisitors && typeof isVisitorScore === 'function';
     const skipBlurred = typeof isOutingBlurred === 'function';
     const byKeyPlayer = {};
@@ -1726,6 +1746,7 @@ const LeaderboardPage = {
       });
     }
 
+    LeaderboardShared.applyOverallBestOutingsToPlayers(overallList, overallBestN || 0);
     const filtered = overallList.filter(p => {
       if (skipVisitor && isVisitorScore({ playerName: p.name })) return false;
       return (parseFloat(p.totalPoints) || 0) > 0;
@@ -1735,7 +1756,7 @@ const LeaderboardPage = {
   },
 
   // O10 overall: 1st=10pts, 2nd=9,... 10th=1 per outing. Ties get same points.
-  buildO10Overall: function({ outingOrderKeys, scoresByOuting, outingMeta, excludeVisitors, isVisitorScore, isOutingBlurred }) {
+  buildO10Overall: function({ outingOrderKeys, scoresByOuting, outingMeta, excludeVisitors, isVisitorScore, isOutingBlurred, overallBestN }) {
     const skipVisitor = excludeVisitors && typeof isVisitorScore === 'function';
     const skipBlurred = typeof isOutingBlurred === 'function';
     const pointsForPos = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
@@ -1839,6 +1860,7 @@ const LeaderboardPage = {
       });
     }
 
+    LeaderboardShared.applyOverallBestOutingsToPlayers(overallList, overallBestN || 0);
     const filtered = overallList.filter(p => {
       if (skipVisitor && isVisitorScore({ playerName: p.name })) return false;
       return (parseFloat(p.totalPoints) || 0) > 0;
@@ -1849,134 +1871,7 @@ const LeaderboardPage = {
   },
 
   // Build scrollable 18-hole detail panel HTML
-  buildHoleDetailHtml: function(score, parIndexPairs, par3Indices, highlight66Indices, p3UsePoints, highlight2sIndices) {
-    const holes = score.holes || [];
-    const pts = score.holePoints || [];
-
-    let outStrokes = 0, inStrokes = 0, outPoints = 0, inPoints = 0;
-    const strokeVals = [], pointVals = [];
-
-    for (let h = 0; h < 18; h++) {
-      const s = holes[h] !== '' && holes[h] != null ? String(holes[h]) : '-';
-      const p = (pts[h] !== undefined && pts[h] !== '' ? String(pts[h]) : '-');
-      strokeVals.push(s);
-      pointVals.push(p);
-
-      const sn = parseInt(holes[h], 10);
-      const pn = parseFloat(pts[h]);
-      if (!isNaN(sn) && sn > 0) {
-        if (h < 9) outStrokes += sn; else inStrokes += sn;
-      }
-      if (!isNaN(pn)) {
-        if (h < 9) outPoints += pn; else inPoints += pn;
-      }
-    }
-
-    const totStrokes = outStrokes + inStrokes;
-    const totPts = outPoints + inPoints;
-
-    // Par cells
-    const parCells = [];
-    let parOut = 0, parIn = 0, parTot = 0;
-    if (parIndexPairs && parIndexPairs.length === 18) {
-      for (let i = 0; i < 18; i++) {
-        const pr = parIndexPairs[i].par || 0;
-        parCells.push(pr || '-');
-        if (i < 9) parOut += pr; else parIn += pr;
-      }
-      parTot = parOut + parIn;
-    } else {
-      for (let k = 0; k < 18; k++) parCells.push('-');
-    }
-
-    // Index cells
-    const indexCells = [];
-    if (parIndexPairs && parIndexPairs.length === 18) {
-      for (let ii = 0; ii < 18; ii++) {
-        const idx = parIndexPairs[ii].index;
-        indexCells.push(idx ? String(idx) : '-');
-      }
-    } else {
-      for (let ik = 0; ik < 18; ik++) indexCells.push('-');
-    }
-
-    const p3 = par3Indices || [];
-    const highlight66Set = {};
-    if (highlight66Indices && highlight66Indices.length) {
-      for (let z = 0; z < highlight66Indices.length; z++) highlight66Set[highlight66Indices[z]] = true;
-    }
-    const highlight2sSet = {};
-    if (highlight2sIndices && highlight2sIndices.length) {
-      for (let z2 = 0; z2 < highlight2sIndices.length; z2++) highlight2sSet[highlight2sIndices[z2]] = true;
-    }
-
-    const isPar3 = i => p3.indexOf(i) >= 0;
-
-    // Signature matches theGolfApp calls (rowType is unused, but present for param alignment)
-    const cell = (txt, cls, holeIdx, rowType, pointHighlight, strokeHighlight) => {
-      let c = cls || '';
-      if (pointHighlight && holeIdx != null && (highlight66Set[holeIdx] || (isPar3(holeIdx) && p3UsePoints))) {
-        c = (c ? c + ' ' : '') + 'lb-detail-points-66';
-      }
-      if (strokeHighlight && holeIdx != null && isPar3(holeIdx) && p3UsePoints === false) {
-        c = (c ? c + ' ' : '') + 'lb-detail-strokes-p3';
-      }
-      if (strokeHighlight && holeIdx != null && highlight2sSet[holeIdx]) {
-        c = (c ? c + ' ' : '') + 'lb-detail-strokes-2s';
-      }
-      const safeTxt = (typeof txt === 'number') ? String(txt) : this.escapeHtml(String(txt));
-      return '<span' + (c ? ' class="' + c + '"' : '') + '>' + safeTxt + '</span>';
-    };
-
-    const parCell = v => '<span class="lb-detail-par">' + this.escapeHtml(String(v)) + '</span>';
-
-    const cells = [];
-
-    // Labels/strokes/points rows
-    for (let n = 1; n <= 9; n++) cells.push(cell(n, null, n - 1, 'first'));
-    cells.push(cell('OUT', 'lb-detail-col-total'));
-    for (let n = 10; n <= 18; n++) cells.push(cell(n, null, n - 1, 'first'));
-    cells.push(cell('IN', 'lb-detail-col-total'));
-    cells.push(cell('TOT', 'lb-detail-col-total'));
-
-    cells.push(cell('Par:', 'lb-detail-label lb-detail-par'));
-    for (let pi = 0; pi < 9; pi++) cells.push(parCell(parCells[pi]));
-    cells.push(parCell(parIndexPairs && parIndexPairs.length === 18 ? parOut : '-'));
-    for (let pj = 9; pj < 18; pj++) cells.push(parCell(parCells[pj]));
-    cells.push(parCell(parIndexPairs && parIndexPairs.length === 18 ? parIn : '-'));
-    cells.push(parCell(parIndexPairs && parIndexPairs.length === 18 ? parTot : '-'));
-
-    cells.push(cell('Index:', 'lb-detail-label lb-detail-index'));
-    for (let idi = 0; idi < 9; idi++) cells.push(cell(indexCells[idi], 'lb-detail-index', idi, 'mid'));
-    cells.push(cell('-', 'lb-detail-index'));
-    for (let idj = 9; idj < 18; idj++) cells.push(cell(indexCells[idj], 'lb-detail-index', idj, 'mid'));
-    cells.push(cell('-', 'lb-detail-index'));
-    cells.push(cell('-', 'lb-detail-index'));
-
-    cells.push(cell('Strokes:', 'lb-detail-label lb-detail-strokes'));
-    for (let si = 0; si < 9; si++) cells.push(cell(strokeVals[si], 'lb-detail-strokes', si, 'mid', undefined, true));
-    cells.push(cell(outStrokes, 'lb-detail-col-total lb-detail-strokes'));
-    for (let sj = 9; sj < 18; sj++) cells.push(cell(strokeVals[sj], 'lb-detail-strokes', sj, 'mid', undefined, true));
-    cells.push(cell(inStrokes, 'lb-detail-col-total lb-detail-strokes'));
-    cells.push(cell(totStrokes, 'lb-detail-col-total lb-detail-strokes'));
-
-    cells.push(cell('Points:', 'lb-detail-label lb-detail-points'));
-    for (let qi = 0; qi < 9; qi++) cells.push(cell(pointVals[qi], 'lb-detail-points', qi, 'last', true));
-    cells.push(cell(outPoints, 'lb-detail-col-total lb-detail-points'));
-    for (let qj = 9; qj < 18; qj++) cells.push(cell(pointVals[qj], 'lb-detail-points', qj, 'last', true));
-    cells.push(cell(inPoints, 'lb-detail-col-total lb-detail-points'));
-    cells.push(cell(totPts, 'lb-detail-col-total lb-detail-points'));
-
-    // Prepend the first-column header cell ("Hole#:") so the rest of the grid columns align correctly.
-    return (
-      '<div class="lb-hole-detail-wrap">' +
-      '<div class="lb-hole-detail-scroll">' +
-      '<div class="lb-hole-detail-grid">' +
-      cell('Hole#:', 'lb-detail-label') +
-      cells.join('') +
-      '</div></div></div>'
-    );
-  }
+  buildHoleDetailHtml: LeaderboardShared.buildHoleDetailHtml
 };
 
 document.addEventListener('DOMContentLoaded', function() {
