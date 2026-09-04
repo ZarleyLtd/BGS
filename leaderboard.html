@@ -487,8 +487,7 @@
       .lb-detail-strokes { color: #000; }
       .lb-detail-points { color: var(--lb-accent); }
       .lb-detail-points-66 { background: var(--lb-accent); color: #fff; border-radius: 2px; }
-      .lb-detail-strokes-p3 { background: var(--lb-accent); color: #fff; border-radius: 2px; }
-      .lb-detail-strokes-2s { background: var(--lb-accent); color: #fff; border-radius: 2px; }
+      .lb-detail-hole-hl { background: var(--lb-accent); color: #fff; border-radius: 2px; }
       .lb-hole-detail-grid > .lb-detail-strokes-par,
       .lb-hole-detail-grid > .lb-detail-strokes-birdie,
       .lb-hole-detail-grid > .lb-detail-strokes-eagle,
@@ -593,6 +592,175 @@
       .lb-per-outing-list li { padding: 0.35em 0; border-bottom: 1px solid #eee; }
       .lb-per-outing-list li:last-child { border-bottom: none; }
       .lb-detail-cell-total { border: 1px solid var(--lb-accent); box-sizing: border-box; }
+
+      /* --- Winner-comp order of merit modal --- */
+      .lb-comp-merit-cell { cursor: pointer; }
+      .lb-comp-merit-trigger {
+        appearance: none;
+        -webkit-appearance: none;
+        display: inline;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        background: none;
+        font: inherit;
+        font-weight: inherit;
+        font-size: inherit;
+        color: inherit;
+        cursor: pointer;
+        text-decoration: none;
+      }
+      .lb-comp-merit-trigger:hover,
+      .lb-comp-merit-trigger:focus-visible {
+        color: #0e6b5a;
+      }
+      .lb-merit-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 10000;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1em;
+        box-sizing: border-box;
+      }
+      .lb-merit-dialog {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25);
+        width: min(28em, 100%);
+        max-height: min(90vh, 40em);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .lb-merit-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75em;
+        padding: 0.85em 1em 0.15em;
+      }
+      .lb-merit-title {
+        margin: 0;
+        font-size: 1.25em;
+        font-weight: 700;
+        color: var(--lb-accent);
+      }
+      .lb-merit-subtitle {
+        margin: 0;
+        padding: 0 1em 0.65em;
+        font-size: 0.9em;
+        color: #666;
+      }
+      .lb-merit-close {
+        appearance: none;
+        -webkit-appearance: none;
+        flex: 0 0 auto;
+        width: 2em;
+        height: 2em;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        border-radius: 50%;
+        background: transparent;
+        color: #444;
+        font-size: 1.6em;
+        line-height: 1;
+        cursor: pointer;
+      }
+      .lb-merit-close:hover,
+      .lb-merit-close:focus-visible {
+        background: #edf1f0;
+        color: #111;
+      }
+      .lb-merit-body {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
+        padding: 0;
+        flex: 1 1 auto;
+      }
+      .lb-merit-table-wrap {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        flex: 1 1 auto;
+        width: 100%;
+      }
+      .lb-merit-table-scroll {
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        min-height: 0;
+        flex: 1 1 auto;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .lb-merit-table-head {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        width: 100%;
+        box-sizing: border-box;
+        display: grid;
+        grid-template-columns: 18% 50% 32%;
+        align-items: center;
+        background: var(--lb-accent);
+        color: #fff;
+        font-weight: 600;
+        font-size: 0.8em;
+        letter-spacing: 0.3px;
+        padding: 0.7em 0;
+      }
+      .lb-merit-table-head > span {
+        padding: 0 0.85em;
+        white-space: nowrap;
+      }
+      .lb-merit-table-head > span:first-child,
+      .lb-merit-table-head > span:nth-child(2) {
+        text-transform: uppercase;
+      }
+      .lb-merit-table-head > span.text-right { text-align: right; }
+      .lb-merit-table {
+        width: 100%;
+        table-layout: fixed;
+        border-collapse: collapse;
+        font-size: 0.95em;
+      }
+      .lb-merit-col-pos { width: 18%; }
+      .lb-merit-col-name { width: 50%; }
+      .lb-merit-col-total { width: 32%; }
+      .lb-merit-table thead th {
+        background: var(--lb-accent);
+        color: #fff;
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.8em;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 0.7em 0.85em;
+        box-sizing: border-box;
+        white-space: nowrap;
+      }
+      .lb-merit-table thead th.text-right { text-align: right; }
+      .lb-merit-table tbody td {
+        padding: 0.65em 0.85em;
+        border-bottom: 1px solid #e0e0e0;
+        vertical-align: middle;
+        box-sizing: border-box;
+      }
+      .lb-merit-table tbody tr:last-child td { border-bottom: none; }
+      .lb-merit-pos { font-weight: 700; color: var(--lb-accent); white-space: nowrap; }
+      .lb-merit-name { font-weight: 600; color: #333; min-width: 0; overflow-wrap: anywhere; }
+      .lb-merit-total {
+        font-weight: 700;
+        color: var(--lb-accent);
+        white-space: nowrap;
+        text-align: right;
+      }
+      .lb-merit-total .lb-countback { margin-right: 0.35em; }
     </style>
     <noscript>
       <style>

@@ -16,6 +16,7 @@ const LeaderboardPage = {
       this.teams != null ? this.teams : {};
 
     container.innerHTML = '<p class="loading">Loading leaderboard...</p>';
+    this.closeCompMeritModal();
 
     try {
       // Load par/index data needed for the 18-hole detail panels.
@@ -166,6 +167,8 @@ const LeaderboardPage = {
       });
 
       const panelParts = [];
+      this._compMerit = {};
+      this._compMeritSeq = 0;
 
       if (overallStatus === 'O10' || overallStatus === 'OAP') {
         const bestNSubtitle = overallBestN > 0
@@ -447,6 +450,7 @@ const LeaderboardPage = {
 
         let scoreByPlayer = {};
         let teamWinResult = { scores: [], countbackLabel: null };
+        let teamScores = [];
         if (showTeam) {
           scoreByPlayer = {};
           for (let tsi = 0; tsi < outingScores.length; tsi++) {
@@ -461,13 +465,105 @@ const LeaderboardPage = {
             courseNameDisplay,
             outingDateStr
           );
-          const teamScores = outingTeams.map(team =>
+          teamScores = outingTeams.map(team =>
             LeaderboardShared.buildTeamScoreEntry(team, scoreByPlayer, teamRule, teamN)
           );
           teamWinResult = LeaderboardShared.bestWithCountback(
             teamScores,
             LeaderboardShared.compareCountbackTeam,
             LeaderboardShared.getCountbackLabelTeam
+          );
+        }
+
+        const meritKeys = {};
+        if (showF9 && f9Candidates.length > 0) {
+          meritKeys.f9 = this.storeCompMerit(
+            'F9',
+            this.buildCompMeritTableHtml(
+              LeaderboardShared.rankAllWithCountback(
+                f9Candidates,
+                this.compareCountbackF9.bind(this),
+                this.getCountbackLabelF9.bind(this)
+              ),
+              sc => this.escapeHtml(this.displayText(sc.playerName)),
+              (sc, cb) => this.formatPointsWithCountback(sc.outPoints, cb),
+              'pts'
+            )
+          );
+        }
+        if (showB9 && b9Candidates.length > 0) {
+          meritKeys.b9 = this.storeCompMerit(
+            'B9',
+            this.buildCompMeritTableHtml(
+              LeaderboardShared.rankAllWithCountback(
+                b9Candidates,
+                this.compareCountbackB9.bind(this),
+                this.getCountbackLabelB9.bind(this)
+              ),
+              sc => this.escapeHtml(this.displayText(sc.playerName)),
+              (sc, cb) => this.formatPointsWithCountback(sc.inPoints, cb),
+              'pts'
+            )
+          );
+        }
+        if (show66 && outingScores66.length > 0) {
+          meritKeys.c66 = this.storeCompMerit(
+            '66',
+            this.buildCompMeritTableHtml(
+              LeaderboardShared.rankAllWithCountback(
+                outingScores66,
+                this.compareCountback66.bind(this),
+                this.getCountbackLabel66.bind(this)
+              ),
+              sc => this.escapeHtml(this.displayText(sc.playerName)),
+              (sc, cb) => this.formatPointsWithCountback(this.points66(sc), cb),
+              'pts'
+            )
+          );
+        }
+        if (showP3 && par3Candidates.length > 0) {
+          const p3Use = p3UsePoints;
+          meritKeys.p3 = this.storeCompMerit(
+            'P3',
+            this.buildCompMeritTableHtml(
+              LeaderboardShared.rankAllWithCountback(
+                par3Candidates,
+                (a, b) => LeaderboardShared.comparePar3Candidates(a, b, p3Use),
+                (a, b) => this.getPar3CountbackLabel(a, b, p3Use)
+              ),
+              c => this.escapeHtml(this.displayText(c.score.playerName)),
+              (c, cb) => this.formatPointsWithCountback(p3Use ? c.par3Points : c.par3Strokes, cb),
+              p3Use ? 'pts' : 'strokes'
+            )
+          );
+        }
+        if (showNH && nhCandidates.length > 0) {
+          const nhUse = nhUsePoints;
+          const nhTitle = LeaderboardShared.nHolesLabel(nhHoles.length);
+          meritKeys.nh = this.storeCompMerit(
+            nhTitle,
+            this.buildCompMeritTableHtml(
+              LeaderboardShared.rankAllWithCountback(
+                nhCandidates,
+                (a, b) => LeaderboardShared.comparePar3Candidates(a, b, nhUse),
+                (a, b) => this.getPar3CountbackLabel(a, b, nhUse)
+              ),
+              c => this.escapeHtml(this.displayText(c.score.playerName)),
+              (c, cb) => this.formatPointsWithCountback(nhUse ? c.par3Points : c.par3Strokes, cb),
+              nhUse ? 'pts' : 'strokes'
+            )
+          );
+        }
+        if (showTeam && teamScores.length > 0) {
+          const teamTitle = LeaderboardShared.formatTeamCompMnemonicForLeaderboard(teamRule);
+          meritKeys.team = this.storeCompMerit(
+            teamTitle,
+            this.buildCompMeritTableHtml(
+              LeaderboardShared.rankTeamsByScore(teamScores),
+              team => LeaderboardShared.formatTeamDisplayNameHtml(team.teamName, team.playerNames || []),
+              (team, cb) => this.formatPointsWithCountback(team.score, cb),
+              'pts'
+            )
           );
         }
 
@@ -556,7 +652,7 @@ const LeaderboardPage = {
 
             sectionParts.push('<div class="lb-outing-block">');
             sectionParts.push('<div class="lb-outing-main lb-outing-row" data-detail-html="' + escaped + '">');
-            sectionParts.push('<span class="lb-cell-pos">' + this.escapeHtml(f9Label) + '</span>');
+            sectionParts.push(this.buildCompPosCellHtml('span', 'lb-cell-pos', f9Label, meritKeys.f9));
             sectionParts.push('<span class="lb-cell-name">' + this.escapeHtml(this.displayText(bestOut.playerName)) + '</span>');
             sectionParts.push(this.buildPhotoCellHtml(bestOut, 'span', 'lb-cell-photo'));
             sectionParts.push('<span class="lb-cell-hcp">' + this.formatNumber(bestOut.handicap) + '</span>');
@@ -580,7 +676,7 @@ const LeaderboardPage = {
 
             sectionParts.push('<div class="lb-outing-block">');
             sectionParts.push('<div class="lb-outing-main lb-outing-row" data-detail-html="' + escaped + '">');
-            sectionParts.push('<span class="lb-cell-pos">' + this.escapeHtml(b9Label) + '</span>');
+            sectionParts.push(this.buildCompPosCellHtml('span', 'lb-cell-pos', b9Label, meritKeys.b9));
             sectionParts.push('<span class="lb-cell-name">' + this.escapeHtml(this.displayText(bestIn.playerName)) + '</span>');
             sectionParts.push(this.buildPhotoCellHtml(bestIn, 'span', 'lb-cell-photo'));
             sectionParts.push('<span class="lb-cell-hcp">' + this.formatNumber(bestIn.handicap) + '</span>');
@@ -604,7 +700,7 @@ const LeaderboardPage = {
 
             sectionParts.push('<div class="lb-outing-block">');
             sectionParts.push('<div class="lb-outing-main lb-outing-row" data-detail-html="' + escaped66 + '">');
-            sectionParts.push('<span class="lb-cell-pos">' + this.escapeHtml(label66) + '</span>');
+            sectionParts.push(this.buildCompPosCellHtml('span', 'lb-cell-pos', label66, meritKeys.c66));
             sectionParts.push('<span class="lb-cell-name">' + this.escapeHtml(this.displayText(sc66.playerName)) + '</span>');
             sectionParts.push(this.buildPhotoCellHtml(sc66, 'span', 'lb-cell-photo'));
             sectionParts.push('<span class="lb-cell-hcp">' + this.formatNumber(sc66.handicap) + '</span>');
@@ -639,7 +735,7 @@ const LeaderboardPage = {
 
             sectionParts.push('<div class="lb-outing-block">');
             sectionParts.push('<div class="lb-outing-main lb-outing-row" data-detail-html="' + p3Esc + '">');
-            sectionParts.push('<span class="lb-cell-pos">' + this.escapeHtml(posLabel) + '</span>');
+            sectionParts.push(this.buildCompPosCellHtml('span', 'lb-cell-pos', posLabel, meritKeys.p3));
             sectionParts.push('<span class="lb-cell-name">' + this.escapeHtml(this.displayText(tc.score.playerName)) + '</span>');
             sectionParts.push(this.buildPhotoCellHtml(tc.score, 'span', 'lb-cell-photo'));
             sectionParts.push('<span class="lb-cell-hcp">' + this.formatNumber(tc.score.handicap) + '</span>');
@@ -671,7 +767,7 @@ const LeaderboardPage = {
 
             sectionParts.push('<div class="lb-outing-block">');
             sectionParts.push('<div class="lb-outing-main lb-outing-row" data-detail-html="' + escapedDetail + '">');
-            sectionParts.push('<span class="lb-cell-pos">' + this.escapeHtml(nhLabel) + '</span>');
+            sectionParts.push(this.buildCompPosCellHtml('span', 'lb-cell-pos', nhLabel, meritKeys.nh));
             sectionParts.push('<span class="lb-cell-name">' + this.escapeHtml(this.displayText(candidate.score.playerName)) + '</span>');
             sectionParts.push(this.buildPhotoCellHtml(candidate.score, 'span', 'lb-cell-photo'));
             sectionParts.push('<span class="lb-cell-hcp">' + this.formatNumber(candidate.score.handicap) + '</span>');
@@ -717,7 +813,7 @@ const LeaderboardPage = {
             const emptyDetail = '<div class="lb-team-detail"><p class="lb-team-detail-title">No players in team.</p></div>';
             sectionParts.push('<div class="lb-outing-block">');
             sectionParts.push('<div class="lb-outing-main lb-outing-row lb-outing-main--team" data-detail-html="' + this.escapeDetailHtmlForAttribute(emptyDetail) + '">');
-            sectionParts.push('<span class="lb-cell-pos">' + this.escapeHtml(teamLabel) + '</span>');
+            sectionParts.push(this.buildCompPosCellHtml('span', 'lb-cell-pos', teamLabel, meritKeys.team));
             sectionParts.push('<span class="lb-cell-name lb-cell-name--team-lb">' + LeaderboardShared.formatTeamDisplayNameHtml('', []) + '</span>');
             sectionParts.push('<span class="lb-cell-pts">—</span>');
             sectionParts.push('</div><div class="lb-hole-detail-panel"></div></div>');
@@ -730,7 +826,7 @@ const LeaderboardPage = {
                 : '<div class="lb-team-detail"><p class="lb-team-detail-title">No players in team.</p></div>';
               sectionParts.push('<div class="lb-outing-block">');
               sectionParts.push('<div class="lb-outing-main lb-outing-row lb-outing-main--team" data-detail-html="' + this.escapeDetailHtmlForAttribute(teamDetail) + '">');
-              sectionParts.push('<span class="lb-cell-pos">' + this.escapeHtml(teamPositionLabel) + '</span>');
+              sectionParts.push(this.buildCompPosCellHtml('span', 'lb-cell-pos', teamPositionLabel, meritKeys.team));
               sectionParts.push('<span class="lb-cell-name lb-cell-name--team-lb">' + LeaderboardShared.formatTeamDisplayNameHtml(team.teamName, teamPlayers) + '</span>');
               sectionParts.push('<span class="lb-cell-pts">' + this.formatPointsWithCountback(team.score, teamWinResult.countbackLabel) + '</span>');
               sectionParts.push('</div><div class="lb-hole-detail-panel"></div></div>');
@@ -774,7 +870,7 @@ const LeaderboardPage = {
             const bestOut = bestOutResult.scores[fo];
             const detailHtml = this.buildHoleDetailHtml(bestOut, parIndexPairs);
             sectionParts.push('<tr class="lb-outing-row" data-detail-html="' + detailHtml.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '">');
-            sectionParts.push('<td class="leaderboard-position">' + this.escapeHtml(f9TableLabel) + '</td>');
+            sectionParts.push(this.buildCompPosCellHtml('td', 'leaderboard-position', f9TableLabel, meritKeys.f9));
             sectionParts.push('<td class="leaderboard-player-name lb-name-cell">' + this.escapeHtml(this.displayText(bestOut.playerName)) + '</td>');
             sectionParts.push(this.buildPhotoCellHtml(bestOut, 'td', 'lb-photo-cell'));
             sectionParts.push('<td class="text-center leaderboard-section">' + this.formatNumber(bestOut.handicap) + '</td>');
@@ -790,7 +886,7 @@ const LeaderboardPage = {
             const bestIn = bestInResult.scores[bi];
             const detailHtml = this.buildHoleDetailHtml(bestIn, parIndexPairs);
             sectionParts.push('<tr class="lb-outing-row" data-detail-html="' + detailHtml.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '">');
-            sectionParts.push('<td class="leaderboard-position">' + this.escapeHtml(b9TableLabel) + '</td>');
+            sectionParts.push(this.buildCompPosCellHtml('td', 'leaderboard-position', b9TableLabel, meritKeys.b9));
             sectionParts.push('<td class="leaderboard-player-name lb-name-cell">' + this.escapeHtml(this.displayText(bestIn.playerName)) + '</td>');
             sectionParts.push(this.buildPhotoCellHtml(bestIn, 'td', 'lb-photo-cell'));
             sectionParts.push('<td class="text-center leaderboard-section">' + this.formatNumber(bestIn.handicap) + '</td>');
@@ -806,7 +902,7 @@ const LeaderboardPage = {
             const sc66 = best66Result.scores[s66];
             const detailHtml = this.buildHoleDetailHtml(sc66, parIndexPairs, null, this.indices66(sc66));
             sectionParts.push('<tr class="lb-outing-row" data-detail-html="' + detailHtml.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '">');
-            sectionParts.push('<td class="leaderboard-position">' + this.escapeHtml(tableLabel66) + '</td>');
+            sectionParts.push(this.buildCompPosCellHtml('td', 'leaderboard-position', tableLabel66, meritKeys.c66));
             sectionParts.push('<td class="leaderboard-player-name lb-name-cell">' + this.escapeHtml(this.displayText(sc66.playerName)) + '</td>');
             sectionParts.push(this.buildPhotoCellHtml(sc66, 'td', 'lb-photo-cell'));
             sectionParts.push('<td class="text-center leaderboard-section">' + this.formatNumber(sc66.handicap) + '</td>');
@@ -840,7 +936,7 @@ const LeaderboardPage = {
               const tcVal = p3UsePoints ? tc.par3Points : tc.par3Strokes;
               const detailHtml = this.buildHoleDetailHtml(tc.score, parIndexPairs, par3Indices, undefined, p3UsePoints);
               sectionParts.push('<tr class="lb-outing-row">');
-              sectionParts.push('<td class="leaderboard-position">' + this.escapeHtml(posLabelP3) + '</td>');
+              sectionParts.push(this.buildCompPosCellHtml('td', 'leaderboard-position', posLabelP3, meritKeys.p3));
               sectionParts.push('<td class="leaderboard-player-name lb-name-cell">' + this.escapeHtml(this.displayText(tc.score.playerName)) + '</td>');
               sectionParts.push(this.buildPhotoCellHtml(tc.score, 'td', 'lb-photo-cell'));
               sectionParts.push('<td class="text-center leaderboard-section">' + this.formatNumber(tc.score.handicap) + '</td>');
@@ -873,7 +969,7 @@ const LeaderboardPage = {
               const value = nhUsePoints ? candidate.par3Points : candidate.par3Strokes;
               const detail = this.buildHoleDetailHtml(candidate.score, parIndexPairs, nhIndices, undefined, nhUsePoints);
               sectionParts.push('<tr class="lb-outing-row" data-detail-html="' + this.escapeDetailHtmlForAttribute(detail) + '">');
-              sectionParts.push('<td class="leaderboard-position">' + this.escapeHtml(nhLabel) + '</td>');
+              sectionParts.push(this.buildCompPosCellHtml('td', 'leaderboard-position', nhLabel, meritKeys.nh));
               sectionParts.push('<td class="leaderboard-player-name lb-name-cell">' + this.escapeHtml(this.displayText(candidate.score.playerName)) + '</td>');
               sectionParts.push(this.buildPhotoCellHtml(candidate.score, 'td', 'lb-photo-cell'));
               sectionParts.push('<td class="text-center leaderboard-section">' + this.formatNumber(candidate.score.handicap) + '</td>');
@@ -912,7 +1008,7 @@ const LeaderboardPage = {
           if (winningTeams.length === 0) {
             const emptyDetail = '<div class="lb-team-detail"><p class="lb-team-detail-title">No players in team.</p></div>';
             sectionParts.push('<tr class="lb-outing-row" data-detail-html="' + this.escapeDetailHtmlForAttribute(emptyDetail) + '">');
-            sectionParts.push('<td class="leaderboard-position">' + this.escapeHtml(teamLabel) + '</td>');
+            sectionParts.push(this.buildCompPosCellHtml('td', 'leaderboard-position', teamLabel, meritKeys.team));
             sectionParts.push('<td colspan="3" class="leaderboard-player-name lb-name-cell lb-name-cell--team-lb">' + LeaderboardShared.formatTeamDisplayNameHtml('', []) + '</td>');
             sectionParts.push('<td class="text-right leaderboard-points">—</td>');
             sectionParts.push('</tr>');
@@ -925,7 +1021,7 @@ const LeaderboardPage = {
                 ? LeaderboardShared.buildTeamHoleDetailHtml(teamPlayers, scoreByPlayer, parIndexPairs, teamRule, teamN)
                 : '<div class="lb-team-detail"><p class="lb-team-detail-title">No players in team.</p></div>';
               sectionParts.push('<tr class="lb-outing-row" data-detail-html="' + this.escapeDetailHtmlForAttribute(detail) + '">');
-              sectionParts.push('<td class="leaderboard-position">' + this.escapeHtml(teamPositionLabel) + '</td>');
+              sectionParts.push(this.buildCompPosCellHtml('td', 'leaderboard-position', teamPositionLabel, meritKeys.team));
               sectionParts.push('<td colspan="3" class="leaderboard-player-name lb-name-cell lb-name-cell--team-lb">' + LeaderboardShared.formatTeamDisplayNameHtml(team.teamName, teamPlayers) + '</td>');
               sectionParts.push('<td class="text-right leaderboard-points">' + this.formatPointsWithCountback(team.score, teamWinResult.countbackLabel) + '</td>');
               sectionParts.push('</tr>');
@@ -1002,6 +1098,13 @@ const LeaderboardPage = {
         if (thumb) {
           e.stopPropagation();
           if (typeof ImageLightbox !== 'undefined') ImageLightbox.open(thumb.src);
+          return;
+        }
+
+        const meritCell = e.target && e.target.closest && e.target.closest('.lb-comp-merit-cell');
+        if (meritCell) {
+          e.stopPropagation();
+          this.openCompMeritModal(meritCell.getAttribute('data-comp-merit'), meritCell.querySelector('.lb-comp-merit-trigger') || meritCell);
           return;
         }
 
@@ -1115,6 +1218,7 @@ const LeaderboardPage = {
 
       container.addEventListener('keydown', e => {
         if (e.key !== 'Enter' && e.key !== ' ') return;
+        if (e.target && e.target.closest && e.target.closest('.lb-comp-merit-cell')) return;
         const overallRow = e.target && e.target.closest && e.target.closest('.lb-overall-row-with-detail');
         if (overallRow) {
           e.preventDefault();
@@ -1382,7 +1486,7 @@ const LeaderboardPage = {
       '<p class="lb-outing-info-intro">This shows the results of the competitions set up for this outing as follows...</p>' +
       '<div class="lb-outing-info-lines">' + rows.join('') + '</div>' +
       '<div class="lb-outing-info-gap" aria-hidden="true"></div>' +
-      '<p class="lb-outing-info-outro">Click on any line to see a full breakout of the scoring</p>'
+      '<p class="lb-outing-info-outro">Click on any line to see a full breakout of the scoring. Click a competition name (F9, P3, …) to see the full order of merit.</p>'
     );
   },
 
@@ -1871,7 +1975,143 @@ const LeaderboardPage = {
   },
 
   // Build scrollable 18-hole detail panel HTML
-  buildHoleDetailHtml: LeaderboardShared.buildHoleDetailHtml
+  buildHoleDetailHtml: LeaderboardShared.buildHoleDetailHtml,
+
+  storeCompMerit: function(title, tableHtml) {
+    if (!this._compMerit) this._compMerit = {};
+    if (this._compMeritSeq == null) this._compMeritSeq = 0;
+    const id = String(++this._compMeritSeq);
+    this._compMerit[id] = { title: title || '', tableHtml: tableHtml || '' };
+    return id;
+  },
+
+  buildCompPosCellHtml: function(tag, cssClass, label, meritKey) {
+    const text = this.escapeHtml(label);
+    if (!meritKey) {
+      return '<' + tag + ' class="' + cssClass + '">' + text + '</' + tag + '>';
+    }
+    const compName = String(label || '').replace(/\*+$/, '');
+    const aria = 'View full ' + this.escapeHtml(compName) + ' order of merit';
+    return (
+      '<' + tag + ' class="' + cssClass + ' lb-comp-merit-cell" data-comp-merit="' + this.escapeHtml(meritKey) + '">' +
+        '<button type="button" class="lb-comp-merit-trigger" aria-haspopup="dialog" aria-label="' + aria + '" title="View full order of merit">' +
+          text +
+        '</button>' +
+      '</' + tag + '>'
+    );
+  },
+
+  buildCompMeritTableHtml: function(groups, getNameHtml, getTotalHtml, totalKind) {
+    const totalHeader = totalKind === 'strokes' ? 'Total (Strokes)' : 'Total (Pts)';
+    const parts = [];
+    parts.push('<div class="lb-merit-table-wrap">');
+    parts.push('<div class="lb-merit-table-scroll">');
+    parts.push(
+      '<div class="lb-merit-table-head" role="row">' +
+        '<span>Pos</span>' +
+        '<span>Name</span>' +
+        '<span class="text-right">' + this.escapeHtml(totalHeader) + '</span>' +
+      '</div>'
+    );
+    parts.push('<table class="lb-merit-table">');
+    parts.push('<colgroup><col class="lb-merit-col-pos"><col class="lb-merit-col-name"><col class="lb-merit-col-total"></colgroup>');
+    parts.push('<tbody>');
+    const list = groups || [];
+    if (!list.length) {
+      parts.push('<tr><td colspan="3">No scores.</td></tr>');
+    }
+    for (let r = 0; r < list.length; r++) {
+      const group = list[r];
+      const items = group.scores || group.teams || [];
+      for (let g = 0; g < items.length; g++) {
+        parts.push('<tr>');
+        parts.push('<td class="lb-merit-pos">' + this.escapeHtml(group.label) + '</td>');
+        parts.push('<td class="lb-merit-name">' + getNameHtml(items[g]) + '</td>');
+        parts.push('<td class="text-right lb-merit-total">' + getTotalHtml(items[g], group.countbackLabel) + '</td>');
+        parts.push('</tr>');
+      }
+    }
+    parts.push('</tbody></table></div></div>');
+    return parts.join('');
+  },
+
+  getPar3CountbackLabel: function(winner, runnerUp, usePoints) {
+    if (!winner || !runnerUp) return null;
+    if (usePoints) {
+      if (winner.par3Points !== runnerUp.par3Points) return null;
+    } else if (winner.par3Strokes !== runnerUp.par3Strokes) {
+      return null;
+    }
+    const hcpW = parseFloat(winner.score && winner.score.handicap) || 0;
+    const hcpR = parseFloat(runnerUp.score && runnerUp.score.handicap) || 0;
+    if (hcpW > hcpR) return 'hcp';
+    return null;
+  },
+
+  openCompMeritModal: function(meritKey, opener) {
+    const entry = this._compMerit && this._compMerit[meritKey];
+    if (!entry) return;
+    this.closeCompMeritModal();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'lb-merit-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-labelledby', 'lb-merit-title');
+
+    const dialog = document.createElement('div');
+    dialog.className = 'lb-merit-dialog';
+    dialog.innerHTML =
+      '<div class="lb-merit-header">' +
+        '<h2 id="lb-merit-title" class="lb-merit-title">' + this.escapeHtml(entry.title) + '</h2>' +
+        '<button type="button" class="lb-merit-close" aria-label="Close">&times;</button>' +
+      '</div>' +
+      '<p class="lb-merit-subtitle">Order of merit</p>' +
+      '<div class="lb-merit-body">' + entry.tableHtml + '</div>';
+
+    overlay.appendChild(dialog);
+    overlay.addEventListener('click', e => {
+      if (e.target === overlay) this.closeCompMeritModal();
+    });
+    dialog.querySelector('.lb-merit-close').addEventListener('click', () => this.closeCompMeritModal());
+
+    const onKeydown = e => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        this.closeCompMeritModal();
+      }
+    };
+    document.addEventListener('keydown', onKeydown);
+
+    this._meritModal = overlay;
+    this._meritKeyHandler = onKeydown;
+    this._meritOpener = opener || null;
+    this._meritPrevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.body.appendChild(overlay);
+    const closeBtn = dialog.querySelector('.lb-merit-close');
+    if (closeBtn) closeBtn.focus();
+  },
+
+  closeCompMeritModal: function() {
+    if (this._meritKeyHandler) {
+      document.removeEventListener('keydown', this._meritKeyHandler);
+      this._meritKeyHandler = null;
+    }
+    if (this._meritModal && this._meritModal.parentNode) {
+      this._meritModal.parentNode.removeChild(this._meritModal);
+    }
+    this._meritModal = null;
+    if (this._meritPrevOverflow != null) {
+      document.body.style.overflow = this._meritPrevOverflow;
+      this._meritPrevOverflow = null;
+    }
+    const opener = this._meritOpener;
+    this._meritOpener = null;
+    if (opener && typeof opener.focus === 'function') {
+      try { opener.focus(); } catch (e) { /* ignore */ }
+    }
+  }
 };
 
 document.addEventListener('DOMContentLoaded', function() {

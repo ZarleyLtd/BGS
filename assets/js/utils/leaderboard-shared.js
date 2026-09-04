@@ -118,11 +118,8 @@
     }
     function cell(txt, cls, holeIdx, rowType, pointHighlight, strokeHighlight) {
       var c = cls || '';
-      if (pointHighlight && holeIdx != null && (highlight66Set[holeIdx] || (isPar3(holeIdx) && p3UsePoints)))
-        c = (c ? c + ' ' : '') + 'lb-detail-points-66';
-      if (strokeHighlight && holeIdx != null && isPar3(holeIdx) && p3UsePoints === false)
-        c = (c ? c + ' ' : '') + 'lb-detail-strokes-p3';
-      if (strokeHighlight && holeIdx != null && highlight2sSet[holeIdx]) c = (c ? c + ' ' : '') + 'lb-detail-strokes-2s';
+      if (rowType === 'first' && holeIdx != null && (highlight2sSet[holeIdx] || highlight66Set[holeIdx] || isPar3(holeIdx)))
+        c = (c ? c + ' ' : '') + 'lb-detail-hole-hl';
       if (strokeHighlight && holeIdx != null && parIndexPairs && parIndexPairs.length === 18) {
         var relCls = strokeVsParClass(holes[holeIdx], parIndexPairs[holeIdx].par);
         if (relCls) c = (c ? c + ' ' : '') + relCls;
