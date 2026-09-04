@@ -326,37 +326,41 @@ const LeaderboardPage = {
         const rankedOverall = this.rankWithCountback(
           outingScores18,
           this.compareCountbackOverall.bind(this),
-          Math.max(topNCount, 1),
+          Math.max(
+            topNCount,
+            comps.f9ExclN || 0,
+            comps.b9ExclN || 0,
+            comps.p3ExclN || 0,
+            comps.nhExclN || 0,
+            comps.excl66N || 0,
+            1
+          ),
           this.getCountbackLabelOverall.bind(this)
         );
 
-        // Exclusion sets for F9/B9 winners
-        const topNNamesF9 = {};
-        for (let tnf = 0; tnf < Math.min(comps.f9ExclN, rankedOverall.length); tnf++) {
-          for (let gf = 0; gf < rankedOverall[tnf].scores.length; gf++) {
-            topNNamesF9[this.safeString(rankedOverall[tnf].scores[gf].playerName).toLowerCase()] = true;
-          }
-        }
-        const topNNamesB9 = {};
-        for (let tnb = 0; tnb < Math.min(comps.b9ExclN, rankedOverall.length); tnb++) {
-          for (let gb = 0; gb < rankedOverall[tnb].scores.length; gb++) {
-            topNNamesB9[this.safeString(rankedOverall[tnb].scores[gb].playerName).toLowerCase()] = true;
-          }
-        }
+        // Exclusion sets for side-comp winners (not order-of-merit).
+        const topNNamesF9 = LeaderboardShared.topPlacePlayerNames(rankedOverall, comps.f9ExclN);
+        const topNNamesB9 = LeaderboardShared.topPlacePlayerNames(rankedOverall, comps.b9ExclN);
+        const topNNamesP3 = LeaderboardShared.topPlacePlayerNames(rankedOverall, comps.p3ExclN);
+        const topNNamesNH = LeaderboardShared.topPlacePlayerNames(rankedOverall, comps.nhExclN);
+        const topNNames66 = LeaderboardShared.topPlacePlayerNames(rankedOverall, comps.excl66N);
 
-        // Candidates
-        const f9Candidates = [];
-        const b9Candidates = [];
+        // Full lists honour visitor policy only; exclude-places applies to winners, not order-of-merit.
+        const f9CandidatesAll = [];
+        const b9CandidatesAll = [];
         for (let t = 0; t < outingScores.length; t++) {
           const so = outingScores[t];
-          const pkey = this.safeString(so && so.playerName).toLowerCase();
-          if (!(comps.excludeVisitorsF9 && isVisitorScore(so))) {
-            if (!comps.f9ExclN || !topNNamesF9[pkey]) f9Candidates.push(so);
-          }
-          if (!(comps.excludeVisitorsB9 && isVisitorScore(so))) {
-            if (!comps.b9ExclN || !topNNamesB9[pkey]) b9Candidates.push(so);
-          }
+          if (!(comps.excludeVisitorsF9 && isVisitorScore(so))) f9CandidatesAll.push(so);
+          if (!(comps.excludeVisitorsB9 && isVisitorScore(so))) b9CandidatesAll.push(so);
         }
+        const f9Candidates = f9CandidatesAll.filter(s => {
+          const pkey = this.safeString(s && s.playerName).toLowerCase();
+          return !comps.f9ExclN || !topNNamesF9[pkey];
+        });
+        const b9Candidates = b9CandidatesAll.filter(s => {
+          const pkey = this.safeString(s && s.playerName).toLowerCase();
+          return !comps.b9ExclN || !topNNamesB9[pkey];
+        });
 
         const bestOutResult = this.bestWithCountback(
           f9Candidates,
@@ -369,10 +373,12 @@ const LeaderboardPage = {
           this.getCountbackLabelB9.bind(this)
         );
 
-        // 66 candidates (best 6+6 holes) — visitors filtered per-comp.
-        const outingScores66 = comps.excludeVisitors66
-          ? outingScores.filter(s => !isVisitorScore(s))
-          : outingScores;
+        // 66 candidates (best 6+6 holes) — visitors filtered per-comp; excl places for winners only.
+        const outingScores66All = outingScores.filter(s => !(comps.excludeVisitors66 && isVisitorScore(s)));
+        const outingScores66 = outingScores66All.filter(s => {
+          const pk66 = this.safeString(s && s.playerName).toLowerCase();
+          return !comps.excl66N || !topNNames66[pk66];
+        });
         const best66Result = show66
           ? this.bestWithCountback(
               outingScores66,
@@ -382,7 +388,7 @@ const LeaderboardPage = {
           : { scores: [], countbackLabel: null };
 
         // P3s candidates (par-3 only)
-        const par3Candidates = [];
+        const par3CandidatesAll = [];
         if (showP3 && par3Indices && par3Indices.length) {
           for (let q = 0; q < outingScores.length; q++) {
             const sq = outingScores[q];
@@ -408,7 +414,7 @@ const LeaderboardPage = {
             }
 
             if (hasAllPar3Scores) {
-              par3Candidates.push({
+              par3CandidatesAll.push({
                 score: sq,
                 par3Strokes,
                 par3Points,
@@ -418,18 +424,28 @@ const LeaderboardPage = {
           }
 
           // Same sorting rule as theGolfApp
-          par3Candidates.sort((a, b) => LeaderboardShared.comparePar3Candidates(a, b, p3UsePoints));
+          par3CandidatesAll.sort((a, b) => LeaderboardShared.comparePar3Candidates(a, b, p3UsePoints));
         }
+        const par3Candidates = par3CandidatesAll.filter(c => {
+          const pkeyP3 = this.safeString(c.score && c.score.playerName).toLowerCase();
+          return !comps.p3ExclN || !topNNamesP3[pkeyP3];
+        });
 
-        const nhCandidates = showNH && nhIndices.length
-          ? LeaderboardShared.collectSelectedHolesCandidates(
-              outingScores,
-              nhIndices,
-              comps.excludeVisitorsNH,
-              isVisitorScore
-            )
-          : [];
-        nhCandidates.sort((a, b) => LeaderboardShared.comparePar3Candidates(a, b, nhUsePoints));
+        let nhCandidatesAll = [];
+        let nhCandidates = [];
+        if (showNH && nhIndices.length) {
+          nhCandidatesAll = LeaderboardShared.collectSelectedHolesCandidates(
+            outingScores,
+            nhIndices,
+            comps.excludeVisitorsNH,
+            isVisitorScore
+          );
+          nhCandidatesAll.sort((a, b) => LeaderboardShared.comparePar3Candidates(a, b, nhUsePoints));
+          nhCandidates = nhCandidatesAll.filter(c => {
+            const pkNH = this.safeString(c.score && c.score.playerName).toLowerCase();
+            return !comps.nhExclN || !topNNamesNH[pkNH];
+          });
+        }
 
         // 2s winners: all players with at least one "2"
         const twosWinners = [];
@@ -476,12 +492,12 @@ const LeaderboardPage = {
         }
 
         const meritKeys = {};
-        if (showF9 && f9Candidates.length > 0) {
+        if (showF9 && f9CandidatesAll.length > 0) {
           meritKeys.f9 = this.storeCompMerit(
             'F9',
             this.buildCompMeritTableHtml(
               LeaderboardShared.rankAllWithCountback(
-                f9Candidates,
+                f9CandidatesAll,
                 this.compareCountbackF9.bind(this),
                 this.getCountbackLabelF9.bind(this)
               ),
@@ -491,12 +507,12 @@ const LeaderboardPage = {
             )
           );
         }
-        if (showB9 && b9Candidates.length > 0) {
+        if (showB9 && b9CandidatesAll.length > 0) {
           meritKeys.b9 = this.storeCompMerit(
             'B9',
             this.buildCompMeritTableHtml(
               LeaderboardShared.rankAllWithCountback(
-                b9Candidates,
+                b9CandidatesAll,
                 this.compareCountbackB9.bind(this),
                 this.getCountbackLabelB9.bind(this)
               ),
@@ -506,12 +522,12 @@ const LeaderboardPage = {
             )
           );
         }
-        if (show66 && outingScores66.length > 0) {
+        if (show66 && outingScores66All.length > 0) {
           meritKeys.c66 = this.storeCompMerit(
             '66',
             this.buildCompMeritTableHtml(
               LeaderboardShared.rankAllWithCountback(
-                outingScores66,
+                outingScores66All,
                 this.compareCountback66.bind(this),
                 this.getCountbackLabel66.bind(this)
               ),
@@ -521,13 +537,13 @@ const LeaderboardPage = {
             )
           );
         }
-        if (showP3 && par3Candidates.length > 0) {
+        if (showP3 && par3CandidatesAll.length > 0) {
           const p3Use = p3UsePoints;
           meritKeys.p3 = this.storeCompMerit(
             'P3',
             this.buildCompMeritTableHtml(
               LeaderboardShared.rankAllWithCountback(
-                par3Candidates,
+                par3CandidatesAll,
                 (a, b) => LeaderboardShared.comparePar3Candidates(a, b, p3Use),
                 (a, b) => this.getPar3CountbackLabel(a, b, p3Use)
               ),
@@ -537,14 +553,14 @@ const LeaderboardPage = {
             )
           );
         }
-        if (showNH && nhCandidates.length > 0) {
+        if (showNH && nhCandidatesAll.length > 0) {
           const nhUse = nhUsePoints;
           const nhTitle = LeaderboardShared.nHolesLabel(nhHoles.length);
           meritKeys.nh = this.storeCompMerit(
             nhTitle,
             this.buildCompMeritTableHtml(
               LeaderboardShared.rankAllWithCountback(
-                nhCandidates,
+                nhCandidatesAll,
                 (a, b) => LeaderboardShared.comparePar3Candidates(a, b, nhUse),
                 (a, b) => this.getPar3CountbackLabel(a, b, nhUse)
               ),
@@ -1451,20 +1467,31 @@ const LeaderboardPage = {
       );
     }
     if (comps.showP3) {
-      addRow('Par 3:', 'Best ' + (comps.p3UsePoints ? 'points' : 'strokes') + ' total on par 3s');
+      const p3Excl = comps.p3ExclN || 0;
+      const p3Scoring = 'Best ' + (comps.p3UsePoints ? 'points' : 'strokes') + ' total on par 3s';
+      if (p3Excl === 0) addRow('Par 3:', p3Scoring);
+      else if (p3Excl === 1) addRow('Par 3:', p3Scoring + ' — 18 Hole winner excluded');
+      else addRow('Par 3:', p3Scoring + ' — Top ' + p3Excl + ' 18 holes places excluded');
     }
     if (comps.showNH) {
       const holes = comps.nhHoles || [];
       const label = holes.length ? LeaderboardShared.nHolesLabel(holes.length) : 'N-holes';
-      addRow(
-        label + ':',
-        holes.length
-          ? 'Best ' + (comps.nhUsePoints ? 'points' : 'strokes') + ' total on holes ' + holes.join(', ')
-          : 'Selected holes not available'
-      );
+      const nhExcl = comps.nhExclN || 0;
+      let nhScoring = holes.length
+        ? 'Best ' + (comps.nhUsePoints ? 'points' : 'strokes') + ' total on holes ' + holes.join(', ')
+        : 'Selected holes not available';
+      if (nhExcl === 1) nhScoring += ' — 18 Hole winner excluded';
+      else if (nhExcl > 1) nhScoring += ' — Top ' + nhExcl + ' 18 holes places excluded';
+      addRow(label + ':', nhScoring);
     }
     if (comps.show2s) addRow("Two's:", "Any gross 2's carded");
-    if (comps.show66) addRow('66:', 'Best 6 holes front & back (stableford)');
+    if (comps.show66) {
+      const excl66 = comps.excl66N || 0;
+      let s66 = 'Best 6 holes front & back (stableford)';
+      if (excl66 === 1) s66 += ' — 18 Hole winner excluded';
+      else if (excl66 > 1) s66 += ' — Top ' + excl66 + ' 18 holes places excluded';
+      addRow('66:', s66);
+    }
     if (comps.showTeam) {
       let teamDescription;
       if (comps.teamRule === 'waltz') {
