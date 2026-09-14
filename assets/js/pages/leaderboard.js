@@ -413,7 +413,9 @@ const LeaderboardPage = {
               labels.push(this.par3StrokeToLabel(holes[idx]));
             }
 
-            if (hasAllPar3Scores) {
+            // Completeness (positive gross on every par 3) applies to strokes
+            // mode only. Points mode counts a missing hole as 0 points.
+            if (p3UsePoints || hasAllPar3Scores) {
               par3CandidatesAll.push({
                 score: sq,
                 par3Strokes,
@@ -473,11 +475,25 @@ const LeaderboardPage = {
             const teamScore = outingScores[tsi];
             const teamPlayerKey = this.safeString(teamScore && teamScore.playerName).toLowerCase();
             if (teamPlayerKey) scoreByPlayer[teamPlayerKey] = teamScore;
+            const teamPlayerId = this.safeString(teamScore && teamScore.playerId).toLowerCase();
+            if (teamPlayerId) scoreByPlayer[teamPlayerId] = teamScore;
+          }
+          let outingIdForTeams = outingKeyToOutingId[oKey];
+          if (!outingIdForTeams) {
+            const outingRec = LeaderboardShared.findOutingForScores(
+              outings,
+              oKey.split('|')[0] || courseNameDisplay,
+              outingDateStr || firstScoreDate,
+              scoreDates
+            );
+            if (outingRec && outingRec.outingId != null && outingRec.outingId !== '') {
+              outingIdForTeams = String(outingRec.outingId);
+            }
           }
           const outingTeams = this.getTeamsForOuting(
             teamsInput,
             oKey,
-            outingKeyToOutingId[oKey],
+            outingIdForTeams,
             courseNameDisplay,
             outingDateStr
           );
@@ -838,7 +854,7 @@ const LeaderboardPage = {
               const team = winningTeams[twi];
               const teamPlayers = team.playerNames || [];
               const teamDetail = teamPlayers.length
-                ? LeaderboardShared.buildTeamHoleDetailHtml(teamPlayers, scoreByPlayer, parIndexPairs, teamRule, teamN)
+                ? LeaderboardShared.buildTeamHoleDetailHtml(teamPlayers, scoreByPlayer, parIndexPairs, teamRule, teamN, team.playerIds)
                 : '<div class="lb-team-detail"><p class="lb-team-detail-title">No players in team.</p></div>';
               sectionParts.push('<div class="lb-outing-block">');
               sectionParts.push('<div class="lb-outing-main lb-outing-row lb-outing-main--team" data-detail-html="' + this.escapeDetailHtmlForAttribute(teamDetail) + '">');
@@ -1034,7 +1050,7 @@ const LeaderboardPage = {
               const team = winningTeams[twt];
               const teamPlayers = team.playerNames || [];
               const detail = teamPlayers.length
-                ? LeaderboardShared.buildTeamHoleDetailHtml(teamPlayers, scoreByPlayer, parIndexPairs, teamRule, teamN)
+                ? LeaderboardShared.buildTeamHoleDetailHtml(teamPlayers, scoreByPlayer, parIndexPairs, teamRule, teamN, team.playerIds)
                 : '<div class="lb-team-detail"><p class="lb-team-detail-title">No players in team.</p></div>';
               sectionParts.push('<tr class="lb-outing-row" data-detail-html="' + this.escapeDetailHtmlForAttribute(detail) + '">');
               sectionParts.push(this.buildCompPosCellHtml('td', 'leaderboard-position', teamPositionLabel, meritKeys.team));

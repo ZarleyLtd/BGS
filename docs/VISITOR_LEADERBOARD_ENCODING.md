@@ -82,9 +82,28 @@ Append **`v`** to the **same token** that enables the comp (after any numeric pa
 | Two’s | `2s` | `2sv` |
 | 66 | `66` / `66:<n>` | `66v` / `66:<n>v` |
 
-**N-holes** `<holes>` is a hyphen-separated list of unique hole numbers 1–18, e.g. `nh:1-2-12-14s`. A score is eligible only when every selected hole has a positive gross score. Strokes mode ranks the lowest total; points mode ranks the highest total. Handicap is the tie-breaker, matching Par 3 competitions.
+**N-holes** `<holes>` is a hyphen-separated list of unique hole numbers 1–18, e.g. `nh:1-2-12-14s`. Strokes mode ranks the lowest total; points mode ranks the highest total. Handicap is the tie-breaker, matching Par 3 competitions. Missing selected holes count as **0 strokes / 0 points**; they do **not** make the card ineligible.
 
 **Exclude places** (`:<n>` on F9/B9/Par 3/N-holes/66): omit players who finished in the top `<n>` places of the 18-hole competition from that side competition’s **winners** (same meaning as Front 9 / Back 9). Order-of-merit lists still include those players (visitor policy only).
+
+### 3.2a Hole-completeness eligibility (port this to theGolfApp)
+
+A **positive gross score on every counted hole** is required **only** for **Par 3 strokes** (`p3s` / `p3s:<n>` / `p3sv` / `p3s:<n>v`).
+
+| Competition | Missing / zero-gross hole |
+|-------------|---------------------------|
+| **Par 3 strokes** (`p3s…`) | Card is **ineligible**. Omit from winner row **and** Order of Merit. |
+| **Par 3 points** (`p3p…`) | Eligible. Missing hole counts as **0 points**. |
+| **N-holes** strokes or points (`nh:…s` / `nh:…p`) | Eligible. Missing hole counts as **0 strokes** or **0 points**. |
+| 18-hole, F9, B9, 66, Two’s, Team | No all-holes completeness gate. Missing holes contribute **0** to the relevant total (Two’s simply does not fire on a blank hole). |
+
+**theGolfApp port:**
+
+1. **`collectSelectedHolesCandidates`** (shared leaderboard util) — do **not** skip a player when a selected hole has no positive gross. Sum whatever strokes/points exist; treat blanks as 0. Keep the Par-3-shaped candidate `{ score, par3Strokes, par3Points }`.
+2. **Par 3 candidate loop** (e.g. `all-results.js` / leaderboard) — keep `hasAllPar3Scores`, but **only omit** the player when **`!p3UsePoints && !hasAllPar3Scores`**. When `p3UsePoints` is true, always include the player.
+3. Do **not** apply the completeness gate to F9, B9, 66, Two’s, or team comps.
+
+**Why strokes Par 3 is different:** a blank par 3 would otherwise produce an artificially low stroke total and could win. Points competitions already penalise a blank hole with 0 points, so incompleteness is not an advantage.
 
 **Team** tokens (`th:`, `tt:`, `tw`, `td`, `team`, `team:`) do not define visitor include/exclude in the current admin UI. The parser strips a trailing **`v`** from `th:` / `tt:` numeric tails only so a hand-edited `th:3v` does not break team N parsing; there is no separate “visitors in team comp” flag in comps today.
 
@@ -183,6 +202,7 @@ Re-save society **status** and outing **comps** from admin, or migrate strings i
    - Apply Overall visitor filter **only if** Overall mode is on **and** `excludeVisitorsOverall` is true.
    - Apply per-comp filters using each `excludeVisitors*` flag from `parseComps`.
 5. Ensure **getSociety** returns **`status`**, **getOutings** returns **`comps`**, and team-enabled clients can load outing rosters.
+6. Hole completeness: require a positive gross on every counted hole **only** for Par 3 **strokes**. Par 3 **points**, N-holes (both modes), and all other comps treat a missing hole as 0 and still include the player (see **§3.2a**).
 
 ---
 
@@ -190,7 +210,7 @@ Re-save society **status** and outing **comps** from admin, or migrate strings i
 
 | Area | Path |
 |------|------|
-| Parser + visitor classifier | `assets/js/utils/leaderboard-shared.js` (`parseSocietyOverallStatus`, `parseComps`, `buildIsVisitorFromPlayers`, `getCompsForScores`) |
+| Parser + visitor classifier + N-hole eligibility | `assets/js/utils/leaderboard-shared.js` (`parseSocietyOverallStatus`, `parseComps`, `buildIsVisitorFromPlayers`, `getCompsForScores`, `collectSelectedHolesCandidates`) |
 | Leaderboard UI | `leaderboard.html`, `assets/js/pages/leaderboard.js` |
 | BGS data client | `assets/js/utils/bgs-data.js` |
 | BGS API readers | `supabase/functions/bgs-api/index.ts` |

@@ -803,12 +803,18 @@ async function getSocietyPlayers(sb: ReturnType<typeof createClient>) {
 
 /** Read team rosters for leaderboard team competitions, grouped by outing ID. */
 async function getOutingTeams(sb: ReturnType<typeof createClient>) {
-  const { data, error } = await sb
+  const { data: teams, error } = await sb
     .from("teams")
-    .select("team_id, team_name, outing_id, team_members(player_id)")
+    .select("team_id, team_name, outing_id")
     .eq("society_id", SOCIETY_ID)
     .order("team_name");
   if (error) throw new Error(error.message);
+
+  const { data: members, error: memberError } = await sb
+    .from("team_members")
+    .select("outing_id, team_id, player_id")
+    .eq("society_id", SOCIETY_ID);
+  if (memberError) throw new Error(memberError.message);
 
   const { data: players, error: playerError } = await sb
     .from("players")
@@ -821,16 +827,18 @@ async function getOutingTeams(sb: ReturnType<typeof createClient>) {
     playerNames[player.player_id] = player.player_name;
   });
 
+  const membersByTeam: Record<string, string[]> = {};
+  (members || []).forEach((member: { outing_id: string; team_id: string; player_id: string }) => {
+    const key = `${member.outing_id}|${member.team_id}`;
+    if (!membersByTeam[key]) membersByTeam[key] = [];
+    membersByTeam[key].push(member.player_id);
+  });
+
   const teamsByOuting: Record<string, Array<Record<string, unknown>>> = {};
-  (data || []).forEach((row: {
-    team_id: string;
-    team_name: string;
-    outing_id: string;
-    team_members?: Array<{ player_id: string }>;
-  }) => {
+  (teams || []).forEach((row: { team_id: string; team_name: string; outing_id: string }) => {
     const outingId = String(row.outing_id || "");
     if (!outingId) return;
-    const playerIds = (row.team_members || []).map((member) => member.player_id);
+    const playerIds = membersByTeam[`${outingId}|${row.team_id}`] || [];
     if (!teamsByOuting[outingId]) teamsByOuting[outingId] = [];
     teamsByOuting[outingId].push({
       teamId: row.team_id,
