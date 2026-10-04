@@ -408,20 +408,30 @@ const GalleryPage = {
           e.stopPropagation();
           const photo = photoAt(currentIndex);
           if (!photo || !photo.id) return;
-          if (!window.confirm("Delete this photo? This cannot be undone.")) return;
-          if (typeof ApiClient === "undefined" || typeof GalleryUpload === "undefined") return;
-          deleteBtn.disabled = true;
-          ApiClient.post("deleteGalleryPhoto", {
-            id: photo.id,
-            uploaderToken: GalleryUpload.getUploaderToken(),
-          }).then(function() {
-            GalleryUpload.removeOwnedId(photo.id);
-            self.latestPhotos = self.latestPhotos.filter(function(p) { return p.id !== photo.id; });
-            close();
-            self.render();
-          }).catch(function(err) {
-            deleteBtn.disabled = false;
-            window.alert((err && err.message) || "Could not delete this photo.");
+          if (typeof ConfirmDialog === "undefined") return;
+          ConfirmDialog.show({
+            message: "Delete this photo? This cannot be undone.",
+            confirmLabel: "Delete",
+            cancelLabel: "Cancel",
+            danger: true,
+            onConfirm: function() {
+              if (typeof ApiClient === "undefined" || typeof GalleryUpload === "undefined") return;
+              deleteBtn.disabled = true;
+              ApiClient.post("deleteGalleryPhoto", {
+                id: photo.id,
+                uploaderToken: GalleryUpload.getUploaderToken(),
+              }).then(function() {
+                GalleryUpload.removeOwnedId(photo.id);
+                self.latestPhotos = self.latestPhotos.filter(function(p) { return p.id !== photo.id; });
+                close();
+                self.render();
+              }).catch(function(err) {
+                deleteBtn.disabled = false;
+                if (typeof BriefMessage !== "undefined") {
+                  BriefMessage.show((err && err.message) || "Could not delete this photo.", deleteBtn, { durationMs: 2200 });
+                }
+              });
+            },
           });
         });
       }

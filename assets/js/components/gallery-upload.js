@@ -99,7 +99,30 @@ const GalleryUpload = {
       this._notify("Please choose a photo.");
       return;
     }
-    this._uploadFile(file);
+    this._askToUpload(file);
+  },
+
+  _askToUpload: function(file) {
+    const self = this;
+    const previewUrl = URL.createObjectURL(file);
+    if (typeof ConfirmDialog === "undefined") {
+      URL.revokeObjectURL(previewUrl);
+      this._uploadFile(file);
+      return;
+    }
+    ConfirmDialog.show({
+      message: "Upload this photo to Latest Uploads?",
+      previewUrl: previewUrl,
+      confirmLabel: "Upload",
+      cancelLabel: "Cancel",
+      onConfirm: function() {
+        URL.revokeObjectURL(previewUrl);
+        self._uploadFile(file);
+      },
+      onCancel: function() {
+        URL.revokeObjectURL(previewUrl);
+      },
+    });
   },
 
   _notify: function(text) {
