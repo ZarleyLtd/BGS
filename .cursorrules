@@ -26,3 +26,4 @@
 5. **Relative Paths**: Always use relative paths (e.g., `assets/css/style.css`, not `/assets/css/style.css`).
 6. **No absolute URLs**: Never include `http://localhost` or drive letters like `C:/Users/`.
 7. the rnrREADMEME.md file is from another project and is included here for reference. do not change this file
+8. **Gallery holding photos:** Latest Uploads lives in Supabase. To move them into a year album, run `node scripts/archive-gallery-uploads.mjs --album 2026` (or `General`), then `scripts\generate-gallery-manifest.ps1`, then commit the new images + `assets/data/gallery-manifest.json`. List first with `--list`. Delete junk with `--delete --yes`. See `.cursor/rules/gallery-holding-photos.mdc` and `scripts/README.md`.

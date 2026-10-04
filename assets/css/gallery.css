@@ -10,6 +10,30 @@
   transition: opacity 0.3s ease;
 }
 
+.gallery-toolbar {
+  display: flex;
+  justify-content: center;
+  margin: 1.5rem 0 0;
+}
+
+.gallery-upload-btn {
+  width: auto;
+}
+
+.gallery-upload-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.gallery-empty {
+  text-align: center;
+  margin: 2em 0;
+  color: var(--gray, #57585a);
+}
+
 .gallery-albums {
   margin: 2em 0;
 }
@@ -64,6 +88,20 @@
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+.gallery-album-card__placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: var(--gray, #57585a);
+  font-size: 0.95rem;
+}
+
+.gallery-album-card--latest .gallery-album-card__title {
+  color: var(--link-color-hover, #d73a42);
 }
 
 .gallery-album-card__title {
@@ -135,21 +173,55 @@
   }
 }
 
-.gallery-lightbox__inner {
+.gallery-lightbox__viewport {
   flex: 1;
   min-width: 0;
   min-height: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.gallery-lightbox__track {
+  display: flex;
+  width: 300%;
+  height: 100%;
+  transform: translateX(-33.333%);
+  will-change: transform;
+}
+
+.gallery-lightbox__slide {
+  flex: 0 0 33.333%;
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 0;
+  height: 100%;
 }
 
-.gallery-lightbox__inner img {
+.gallery-lightbox__slide.is-empty {
+  visibility: hidden;
+}
+
+.gallery-lightbox__slide img {
   max-width: 100%;
   max-height: 100%;
   width: auto;
   height: auto;
   object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+
+.gallery-lightbox__close,
+.gallery-lightbox__prev,
+.gallery-lightbox__next,
+.gallery-lightbox__delete,
+.gallery-lightbox__counter {
+  z-index: 2;
+  pointer-events: auto;
 }
 
 .gallery-lightbox__close,
@@ -213,6 +285,30 @@
   .gallery-lightbox__next {
     right: 1rem;
   }
+}
+
+.gallery-lightbox__delete {
+  position: absolute;
+  bottom: 0.75rem;
+  right: 0.5rem;
+  width: auto;
+  min-width: 4.5rem;
+  height: auto;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.85rem;
+  background: rgba(180, 40, 40, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #fff;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.gallery-lightbox__delete:hover {
+  background: rgba(180, 40, 40, 0.95);
+}
+
+.gallery-lightbox__delete[hidden] {
+  display: none !important;
 }
 
 .gallery-lightbox__counter {

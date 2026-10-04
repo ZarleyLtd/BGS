@@ -32,6 +32,9 @@ Query parameter `action` is required. Additional parameters are passed as query 
 | `checkExistingScore` | GET/POST | `{ success, exists, score? }` — query/body: `playerName`, `course`. If multiple scores match, returns the **latest** by `score_timestamp`. |
 | `saveScore` | POST | Body data: full score payload (`playerName`, `course`, `date`, …). Requires an existing outing for that date/course. Returns `{ success, message, timestamp }`. |
 | `deleteScore` | POST | Body data: `playerName`, `course`, `date`, `timestamp` (must match stored row). |
+| `listGalleryUploads` | GET/POST | `{ success, photos: { id, url, uploadedAt, byteSize }[] }` — Latest Uploads holding photos (`archived_at` is null), newest first, max 100. |
+| `uploadGalleryPhoto` | POST | Body data: `base64`, `mimeType`, `uploaderToken` (session UUID), optional `originalFilename`. JPEG/PNG/WebP, max ~100KB. Returns `{ success, photo }` (token is not echoed). Rate-limited per IP. |
+| `deleteGalleryPhoto` | POST | Body data: `id`, `uploaderToken`. Deletes only if the token hash matches and the photo is still in Latest. |
 
 Removed from this API (BGS site no longer uses them): `getFixtures`, `getHandicaps`, `getLeagueCells`, `getConfigKvRows`.
 

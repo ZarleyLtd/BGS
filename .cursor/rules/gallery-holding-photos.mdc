@@ -1,0 +1,26 @@
+---
+description: How to move Gallery Latest Uploads holding photos into year albums
+alwaysApply: true
+---
+
+# Move Gallery holding photos
+
+Latest Uploads is a live Supabase holding album (`thegolfapp.gallery_uploads`, bucket `bgs-gallery-uploads`). Year albums stay as files under `assets/images/Gallery/{year}`. Do not write holding photos into those folders from the website.
+
+When asked to move, archive, or promote Latest Uploads into a year album (from project root; needs `scripts/.env` with `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`):
+
+```powershell
+node scripts/archive-gallery-uploads.mjs --list
+node scripts/archive-gallery-uploads.mjs --album 2026
+powershell -ExecutionPolicy Bypass -File scripts\generate-gallery-manifest.ps1
+```
+
+Use `--album General` when there is no year. Then commit the new images plus `assets/data/gallery-manifest.json` and deploy the static site. Latest Uploads drops those photos as soon as the script marks them archived.
+
+Junk (do not copy into an album):
+
+```powershell
+node scripts/archive-gallery-uploads.mjs --delete --yes
+```
+
+Details: [scripts/README.md](scripts/README.md).

@@ -9,6 +9,15 @@ const IMAGE_BUCKET = "bgs-scorecards";
 /** Seconds a signed image URL stays valid for (6 hours — covers a full outing session). */
 const IMAGE_SIGNED_URL_TTL = 21600;
 
+/** Public Storage bucket for Gallery "Latest Uploads" holding photos. */
+const GALLERY_BUCKET = "bgs-gallery-uploads";
+const GALLERY_MAX_BYTES = 102400;
+const GALLERY_LIST_LIMIT = 100;
+const GALLERY_RATE_MAX = 8;
+const GALLERY_RATE_WINDOW_MS = 60 * 60 * 1000;
+const GALLERY_ALLOWED_MIMES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
+const galleryUploadHits = new Map<string, number[]>();
+
 const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -909,6 +918,142 @@ async function getNextOuting(sb: ReturnType<typeof createClient>) {
   };
 }
 
+function clientIp(req: Request): string {
+  const fwd = req.headers.get("x-forwarded-for") || "";
+  const first = fwd.split(",")[0].trim();
+  return first || req.headers.get("cf-connecting-ip") || req.headers.get("x-real-ip") || "unknown";
+}
+
+function assertGalleryRateLimit(ip: string): void {
+  const now = Date.now();
+  const hits = (galleryUploadHits.get(ip) || []).filter((t) => now - t < GALLERY_RATE_WINDOW_MS);
+  if (hits.length >= GALLERY_RATE_MAX) {
+    throw new ClientError("Too many uploads. Please try again later.");
+  }
+  hits.push(now);
+  galleryUploadHits.set(ip, hits);
+}
+
+function looksLikeImageBytes(bytes: Uint8Array, mime: string): boolean {
+  if (bytes.byteLength < 12) return false;
+  const jpeg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  const png = bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+  const riff = bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46;
+  const webp = riff && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50;
+  if (mime === "image/jpeg") return jpeg;
+  if (mime === "image/png") return png;
+  if (mime === "image/webp") return webp;
+  return jpeg || png || webp;
+}
+
+async function hashUploaderToken(token: unknown): Promise<string> {
+  const t = String(token || "").trim();
+  if (t.length < 16) throw new ClientError("Missing upload session");
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t));
+  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function mapGalleryRow(row: {
+  id?: string;
+  public_url?: string;
+  uploaded_at?: string;
+  byte_size?: number;
+}): Record<string, unknown> {
+  return {
+    id: row.id,
+    url: row.public_url,
+    uploadedAt: row.uploaded_at,
+    byteSize: row.byte_size,
+  };
+}
+
+async function listGalleryUploads(sb: ReturnType<typeof createClient>) {
+  const { data, error } = await sb
+    .from("gallery_uploads")
+    .select("id, public_url, uploaded_at, byte_size")
+    .eq("society_id", SOCIETY_ID)
+    .is("archived_at", null)
+    .order("uploaded_at", { ascending: false })
+    .limit(GALLERY_LIST_LIMIT);
+  if (error) throw new Error(error.message);
+  return { success: true, photos: (data || []).map(mapGalleryRow) };
+}
+
+async function uploadGalleryPhoto(
+  sb: ReturnType<typeof createClient>,
+  data: Record<string, unknown>,
+  req: Request,
+) {
+  assertGalleryRateLimit(clientIp(req));
+  const tokenHash = await hashUploaderToken(data.uploaderToken);
+  const imagePayload = decodeImagePayload(data.base64, data.mimeType);
+  if (!imagePayload) throw new ClientError("No image supplied");
+  const mime = imagePayload.mime.toLowerCase() === "image/jpg" ? "image/jpeg" : imagePayload.mime.toLowerCase();
+  if (!GALLERY_ALLOWED_MIMES.has(mime)) {
+    throw new ClientError("Only JPEG, PNG, or WebP photos can be uploaded");
+  }
+  if (imagePayload.bytes.byteLength > GALLERY_MAX_BYTES) {
+    throw new ClientError("Photo is too large. Please choose a smaller image.");
+  }
+  if (!looksLikeImageBytes(imagePayload.bytes, mime)) {
+    throw new ClientError("That file does not look like a photo");
+  }
+
+  const id = crypto.randomUUID();
+  const ext = mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : "jpg";
+  const path = `${SOCIETY_ID}/${id}.${ext}`;
+  const { error: upErr } = await sb.storage.from(GALLERY_BUCKET).upload(path, imagePayload.bytes, {
+    contentType: mime,
+    upsert: false,
+    cacheControl: "86400",
+  });
+  if (upErr) throw new Error(upErr.message);
+
+  const { data: pub } = sb.storage.from(GALLERY_BUCKET).getPublicUrl(path);
+  const publicUrl = pub?.publicUrl || "";
+  const filename = String(data.originalFilename || "").replace(/[/\\]/g, "").slice(0, 200);
+
+  const { data: row, error: insErr } = await sb
+    .from("gallery_uploads")
+    .insert({
+      society_id: SOCIETY_ID,
+      storage_path: path,
+      public_url: publicUrl,
+      original_filename: filename || null,
+      mime_type: mime,
+      byte_size: imagePayload.bytes.byteLength,
+      uploader_token_hash: tokenHash,
+    })
+    .select("id, public_url, uploaded_at, byte_size")
+    .single();
+  if (insErr) {
+    await sb.storage.from(GALLERY_BUCKET).remove([path]);
+    throw new Error(insErr.message);
+  }
+  return { success: true, photo: mapGalleryRow(row) };
+}
+
+async function deleteGalleryPhoto(sb: ReturnType<typeof createClient>, data: Record<string, unknown>) {
+  const id = String(data.id || "").trim();
+  if (!id) throw new ClientError("Missing photo");
+  const tokenHash = await hashUploaderToken(data.uploaderToken);
+  const { data: row, error } = await sb
+    .from("gallery_uploads")
+    .select("id, storage_path, archived_at, uploader_token_hash")
+    .eq("id", id)
+    .eq("society_id", SOCIETY_ID)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!row || row.archived_at || row.uploader_token_hash !== tokenHash) {
+    throw new ClientError("You can only delete a photo you uploaded in this session");
+  }
+  const { error: storageErr } = await sb.storage.from(GALLERY_BUCKET).remove([row.storage_path]);
+  if (storageErr) console.warn("Failed to delete gallery file:", storageErr.message);
+  const { error: delErr } = await sb.from("gallery_uploads").delete().eq("id", id).eq("society_id", SOCIETY_ID);
+  if (delErr) throw new Error(delErr.message);
+  return { success: true };
+}
+
 async function dispatchGet(sb: ReturnType<typeof createClient>, action: string, params: URLSearchParams) {
   const args = Object.fromEntries(params.entries());
   if (action === "getSociety") return await getSociety(sb);
@@ -922,6 +1067,7 @@ async function dispatchGet(sb: ReturnType<typeof createClient>, action: string, 
   if (action === "loadScores") return await loadScores(sb, args);
   if (action === "checkExistingScore") return await checkExistingScore(sb, args);
   if (action === "getHandicapHistory") return await getHandicapHistory(sb, args);
+  if (action === "listGalleryUploads") return await listGalleryUploads(sb);
   return { success: false, error: `Unknown action: ${action}` };
 }
 
@@ -929,12 +1075,16 @@ async function dispatchPost(
   sb: ReturnType<typeof createClient>,
   action: string,
   body: Record<string, unknown>,
+  req: Request,
 ) {
   const data = (body.data as Record<string, unknown>) || body;
   if (action === "saveScore") return await saveScore(sb, data);
   if (action === "deleteScore") return await deleteScore(sb, data);
   if (action === "uploadScoreImage") return await uploadScoreImage(sb, data);
   if (action === "removeScoreImage") return await removeScoreImage(sb, data);
+  if (action === "uploadGalleryPhoto") return await uploadGalleryPhoto(sb, data, req);
+  if (action === "deleteGalleryPhoto") return await deleteGalleryPhoto(sb, data);
+  if (action === "listGalleryUploads") return await listGalleryUploads(sb);
   if (action === "loadScores") return await loadScores(sb, data);
   if (action === "checkExistingScore") return await checkExistingScore(sb, data);
   // Read-only actions (same as GET) — supports POST clients and form-encoded `data` JSON.
@@ -990,7 +1140,7 @@ Deno.serve(async (req: Request) => {
     if (req.method === "POST") {
       const body = await parsePostBody(req);
       const action = String(body.action || "");
-      const result = await dispatchPost(sb, action, body);
+      const result = await dispatchPost(sb, action, body, req);
       return jsonResponse(result);
     }
     return jsonResponse({ success: false, error: "Method not allowed" }, 405);
