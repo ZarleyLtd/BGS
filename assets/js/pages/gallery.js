@@ -241,9 +241,23 @@ const GalleryPage = {
       let currentIndex = Math.max(0, Math.min(index, photos.length - 1));
       let animating = false;
       let dragStartX = 0;
+      let dragStartY = 0;
       let dragStartTime = 0;
       let dragging = false;
       let lastDx = 0;
+      let scale = 1;
+      let panX = 0;
+      let panY = 0;
+      let panOriginX = 0;
+      let panOriginY = 0;
+      let gesture = null;
+      let pinch = null;
+      let lastTap = null;
+      let blockDblClickUntil = 0;
+      const pointers = new Map();
+      const MIN_SCALE = 1;
+      const MAX_SCALE = 4;
+      const DOUBLE_TAP_SCALE = 2;
 
       const overlay = document.createElement("div");
       overlay.id = "gallery-lightbox";
@@ -311,13 +325,117 @@ const GalleryPage = {
         if (deleteBtn) deleteBtn.hidden = !canDelete;
       }
 
+      function currentImg() {
+        return curSlide.querySelector("img");
+      }
+
+      function clampScale(value) {
+        return Math.min(MAX_SCALE, Math.max(MIN_SCALE, value));
+      }
+
+      function isZoomed() {
+        return scale > 1.01;
+      }
+
+      function applyZoom(animated) {
+        const img = currentImg();
+        if (!img) return;
+        img.style.transition = animated ? "transform 0.22s ease" : "none";
+        if (!isZoomed()) {
+          scale = 1;
+          panX = 0;
+          panY = 0;
+          img.style.transform = "";
+          overlay.classList.remove("is-zoomed");
+          return;
+        }
+        img.style.transform = "translate(" + panX.toFixed(2) + "px, " + panY.toFixed(2) + "px) scale(" + scale.toFixed(4) + ")";
+        overlay.classList.add("is-zoomed");
+      }
+
+      function clampPan() {
+        const img = currentImg();
+        const baseW = img ? img.offsetWidth : 0;
+        const baseH = img ? img.offsetHeight : 0;
+        if (!baseW || !baseH || scale <= 1) {
+          panX = 0;
+          panY = 0;
+          return;
+        }
+        const maxX = Math.max(0, (baseW * scale - viewport.clientWidth) / 2);
+        const maxY = Math.max(0, (baseH * scale - viewport.clientHeight) / 2);
+        panX = Math.min(maxX, Math.max(-maxX, panX));
+        panY = Math.min(maxY, Math.max(-maxY, panY));
+      }
+
+      function resetZoom(animated) {
+        scale = 1;
+        panX = 0;
+        panY = 0;
+        applyZoom(!!animated);
+      }
+
+      function zoomToPoint(newScale, clientX, clientY, animated) {
+        const img = currentImg();
+        if (!img) return;
+        const rect = img.getBoundingClientRect();
+        const visualCenterX = rect.left + rect.width / 2;
+        const visualCenterY = rect.top + rect.height / 2;
+        const next = clampScale(newScale);
+        const safe = scale || 1;
+        panX = panX + (clientX - visualCenterX) * (1 - next / safe);
+        panY = panY + (clientY - visualCenterY) * (1 - next / safe);
+        scale = next;
+        clampPan();
+        applyZoom(!!animated);
+      }
+
+      function applyPinchFrame(prevX, prevY, nextX, nextY, newScale) {
+        const img = currentImg();
+        if (!img) return;
+        const rect = img.getBoundingClientRect();
+        const visualCenterX = rect.left + rect.width / 2;
+        const visualCenterY = rect.top + rect.height / 2;
+        const next = clampScale(newScale);
+        const safe = scale || 1;
+        panX = nextX - visualCenterX + panX - ((prevX - visualCenterX) / safe) * next;
+        panY = nextY - visualCenterY + panY - ((prevY - visualCenterY) / safe) * next;
+        scale = next;
+        clampPan();
+        applyZoom(false);
+      }
+
+      function toggleDoubleTapZoom(clientX, clientY) {
+        if (isZoomed()) resetZoom(true);
+        else zoomToPoint(DOUBLE_TAP_SCALE, clientX, clientY, true);
+      }
+
+      function registerTap(clientX, clientY) {
+        const now = Date.now();
+        if (lastTap && (now - lastTap.time) < 300 && Math.hypot(clientX - lastTap.x, clientY - lastTap.y) < 28) {
+          lastTap = null;
+          blockDblClickUntil = now + 500;
+          toggleDoubleTapZoom(clientX, clientY);
+          return;
+        }
+        lastTap = { time: now, x: clientX, y: clientY };
+      }
+
+      function pointerValues() {
+        return Array.from(pointers.values());
+      }
+
       function goTo(direction) {
         if (animating) return;
         const nextIndex = currentIndex + direction;
         if (nextIndex < 0 || nextIndex >= photos.length) {
-          resetTrack(true);
+          if (!isZoomed()) resetTrack(true);
           return;
         }
+        gesture = null;
+        dragging = false;
+        overlay.classList.remove("is-panning");
+        if (isZoomed()) resetZoom(false);
         animating = true;
         track.style.transition = "transform 0.28s ease";
         track.style.transform = direction > 0 ? "translateX(-66.666%)" : "translateX(0%)";
@@ -361,30 +479,173 @@ const GalleryPage = {
         lastDx = used;
       }
 
-      viewport.addEventListener("touchstart", function(e) {
-        if (animating || !e.touches.length) return;
-        dragging = true;
-        dragStartX = e.touches[0].clientX;
+      function onPointerDown(e) {
+        if (animating) return;
+        if (e.pointerType === "mouse" && e.button !== 0) return;
+        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (e.pointerType !== "mouse") e.preventDefault();
+        try { viewport.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+
+        if (pointers.size >= 2) {
+          const pts = pointerValues();
+          gesture = "pinch";
+          dragging = false;
+          resetTrack(false);
+          pinch = {
+            lastX: (pts[0].x + pts[1].x) / 2,
+            lastY: (pts[0].y + pts[1].y) / 2,
+            lastDist: Math.max(1, Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y)),
+          };
+          overlay.classList.add("is-panning");
+          return;
+        }
+
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
         dragStartTime = Date.now();
         lastDx = 0;
-      }, { passive: true });
+        panOriginX = panX;
+        panOriginY = panY;
+        if (isZoomed()) {
+          gesture = "pan";
+          dragging = true;
+          overlay.classList.add("is-panning");
+        } else if (e.pointerType !== "mouse") {
+          gesture = "swipe";
+          dragging = true;
+        } else {
+          gesture = null;
+          dragging = false;
+        }
+      }
 
-      viewport.addEventListener("touchmove", function(e) {
-        if (!dragging || !e.touches.length) return;
-        applyDrag(e.touches[0].clientX - dragStartX);
-      }, { passive: true });
+      function onPointerMove(e) {
+        if (!pointers.has(e.pointerId)) return;
+        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-      viewport.addEventListener("touchend", function(e) {
+        if (gesture === "pinch" && pointers.size >= 2 && pinch) {
+          e.preventDefault();
+          const pts = pointerValues();
+          const dist = Math.max(1, Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y));
+          const midX = (pts[0].x + pts[1].x) / 2;
+          const midY = (pts[0].y + pts[1].y) / 2;
+          const newScale = clampScale(scale * (dist / pinch.lastDist));
+          applyPinchFrame(pinch.lastX, pinch.lastY, midX, midY, newScale);
+          pinch.lastDist = dist;
+          pinch.lastX = midX;
+          pinch.lastY = midY;
+          return;
+        }
+
         if (!dragging) return;
+        if (gesture === "pan") {
+          e.preventDefault();
+          panX = panOriginX + (e.clientX - dragStartX);
+          panY = panOriginY + (e.clientY - dragStartY);
+          clampPan();
+          applyZoom(false);
+          return;
+        }
+        if (gesture === "swipe") applyDrag(e.clientX - dragStartX);
+      }
+
+      function onPointerEnd(e) {
+        if (!pointers.has(e.pointerId)) return;
+        pointers.delete(e.pointerId);
+
+        if (gesture === "pinch") {
+          if (pointers.size >= 2) return;
+          pinch = null;
+          overlay.classList.remove("is-panning");
+          if (scale < 1.05) resetZoom(true);
+          else {
+            clampPan();
+            applyZoom(false);
+          }
+          if (pointers.size === 1 && isZoomed()) {
+            const rest = pointerValues()[0];
+            dragStartX = rest.x;
+            dragStartY = rest.y;
+            panOriginX = panX;
+            panOriginY = panY;
+            gesture = "pan";
+            dragging = true;
+            overlay.classList.add("is-panning");
+          } else {
+            gesture = null;
+            dragging = false;
+          }
+          return;
+        }
+
+        const wasDragging = dragging;
+        const wasGesture = gesture;
         dragging = false;
-        const dx = e.changedTouches.length ? e.changedTouches[0].clientX - dragStartX : lastDx;
-        const dt = Math.max(1, Date.now() - dragStartTime);
-        const velocity = dx / dt;
-        const threshold = Math.min(80, (viewport.clientWidth || 300) * 0.18);
-        if (dx < -threshold || velocity < -0.4) goTo(1);
-        else if (dx > threshold || velocity > 0.4) goTo(-1);
-        else resetTrack(true);
-      }, { passive: true });
+        gesture = null;
+        overlay.classList.remove("is-panning");
+        if (!wasDragging) return;
+
+        if (wasGesture === "pan") {
+          const panDx = e.clientX - dragStartX;
+          const panDy = e.clientY - dragStartY;
+          if (e.type !== "pointercancel" && e.pointerType !== "mouse" && Math.abs(panDx) < 15 && Math.abs(panDy) < 15) {
+            registerTap(e.clientX, e.clientY);
+          }
+          return;
+        }
+
+        if (wasGesture === "swipe") {
+          if (e.type === "pointercancel") {
+            resetTrack(true);
+            return;
+          }
+          const dx = e.clientX - dragStartX;
+          const dy = e.clientY - dragStartY;
+          const dt = Math.max(1, Date.now() - dragStartTime);
+          const velocity = dx / dt;
+          const threshold = Math.min(80, (viewport.clientWidth || 300) * 0.18);
+          const tap = Math.abs(dx) < 15 && Math.abs(dy) < 15;
+          if (tap) {
+            resetTrack(false);
+            if (e.pointerType !== "mouse") registerTap(e.clientX, e.clientY);
+          } else if (dx < -threshold || velocity < -0.4) {
+            goTo(1);
+          } else if (dx > threshold || velocity > 0.4) {
+            goTo(-1);
+          } else {
+            resetTrack(true);
+          }
+        }
+      }
+
+      viewport.addEventListener("pointerdown", onPointerDown);
+      viewport.addEventListener("pointermove", onPointerMove);
+      viewport.addEventListener("pointerup", onPointerEnd);
+      viewport.addEventListener("pointercancel", onPointerEnd);
+      viewport.addEventListener("touchmove", function(e) {
+        if (gesture) e.preventDefault();
+      }, { passive: false });
+
+      overlay.addEventListener("dblclick", function(e) {
+        if (Date.now() < blockDblClickUntil) return;
+        if (e.target.closest && e.target.closest("button")) return;
+        if (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return;
+        e.preventDefault();
+        toggleDoubleTapZoom(e.clientX, e.clientY);
+      });
+
+      overlay.addEventListener("wheel", function(e) {
+        e.preventDefault();
+        let delta = e.deltaY;
+        if (e.deltaMode === 1) delta *= 16;
+        else if (e.deltaMode === 2) delta *= viewport.clientHeight || 800;
+        const next = clampScale(scale * Math.exp(-delta * 0.0016));
+        if (next <= 1.01) {
+          if (isZoomed()) resetZoom(false);
+          return;
+        }
+        zoomToPoint(next, e.clientX, e.clientY, false);
+      }, { passive: false });
 
       overlay.addEventListener("click", function(e) {
         if (e.target === overlay) close();
